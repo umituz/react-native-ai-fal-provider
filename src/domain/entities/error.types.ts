@@ -1,0 +1,44 @@
+/**
+ * FAL Error Types
+ * Error handling type definitions
+ */
+
+export enum FalErrorType {
+  NETWORK = "network",
+  TIMEOUT = "timeout",
+  API_ERROR = "api_error",
+  VALIDATION = "validation",
+  CONTENT_POLICY = "content_policy",
+  RATE_LIMIT = "rate_limit",
+  AUTHENTICATION = "authentication",
+  QUOTA_EXCEEDED = "quota_exceeded",
+  MODEL_NOT_FOUND = "model_not_found",
+  UNKNOWN = "unknown",
+}
+
+export interface FalErrorCategory {
+  type: FalErrorType;
+  messageKey: string;
+  retryable: boolean;
+}
+
+export interface FalErrorInfo {
+  type: FalErrorType;
+  messageKey: string;
+  retryable: boolean;
+  originalError: string;
+  statusCode?: number;
+}
+
+export interface FalErrorMessages {
+  network?: string;
+  timeout?: string;
+  api_error?: string;
+  validation?: string;
+  content_policy?: string;
+  rate_limit?: string;
+  authentication?: string;
+  quota_exceeded?: string;
+  model_not_found?: string;
+  unknown?: string;
+}
