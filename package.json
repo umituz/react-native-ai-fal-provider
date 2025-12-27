@@ -1,25 +1,24 @@
 {
   "name": "@umituz/react-native-ai-fal-provider",
-  "version": "1.0.3",
-  "description": "FAL AI provider service for React Native applications - client wrapper, error handling, and utilities",
+  "version": "1.0.4",
+  "description": "FAL AI provider for React Native - implements IAIProvider interface for unified AI generation",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "version:patch": "npm version patch -m 'chore: release v%s'",
-    "version:minor": "npm version minor -m 'chore: release v%s'",
-    "version:major": "npm version major -m 'chore: release v%s'"
+    "lint:fix": "eslint src --ext .ts,.tsx --fix"
   },
   "keywords": [
     "react-native",
     "fal-ai",
     "ai",
+    "ai-provider",
     "text-to-image",
     "text-to-video",
     "image-to-video",
-    "ai-generation"
+    "ai-generation",
+    "provider-agnostic"
   ],
   "author": "Umit UZ <umit@umituz.com>",
   "license": "MIT",
@@ -29,6 +28,7 @@
   },
   "peerDependencies": {
     "@fal-ai/client": ">=0.6.0",
+    "@umituz/react-native-ai-generation-content": ">=1.16.0",
     "react": ">=18.2.0",
     "react-native": ">=0.74.0"
   },
@@ -36,10 +36,11 @@
     "@fal-ai/client": "^1.2.1"
   },
   "devDependencies": {
+    "@types/react": "~19.1.10",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@umituz/react-native-ai-generation-content": "^1.16.0",
     "eslint": "^8.57.0",
-    "@types/react": "~19.1.10",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "typescript": "^5.3.0"

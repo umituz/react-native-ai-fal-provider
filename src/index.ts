@@ -1,13 +1,19 @@
 /**
  * @umituz/react-native-ai-fal-provider
- * FAL AI provider service for React Native applications
+ * FAL AI provider for React Native - implements IAIProvider interface
  *
  * Usage:
  *   import {
- *     falClientService,
- *     useFalGeneration,
- *     mapFalError
+ *     FalProvider,
+ *     falProvider,
+ *     providerRegistry,
  *   } from '@umituz/react-native-ai-fal-provider';
+ *   import { providerRegistry } from '@umituz/react-native-ai-generation-content';
+ *
+ *   // Register provider at app startup
+ *   falProvider.initialize({ apiKey: 'your-api-key' });
+ *   providerRegistry.register(falProvider);
+ *   providerRegistry.setActiveProvider('fal');
  */
 
 // =============================================================================
@@ -37,7 +43,13 @@ export type {
 } from "./domain/entities/error.types";
 
 // =============================================================================
-// INFRASTRUCTURE LAYER - Services
+// INFRASTRUCTURE LAYER - Provider (IAIProvider Implementation)
+// =============================================================================
+
+export { FalProvider, falProvider } from "./infrastructure/services";
+
+// =============================================================================
+// INFRASTRUCTURE LAYER - Services (Low-level client)
 // =============================================================================
 
 export { falClientService } from "./infrastructure/services";
