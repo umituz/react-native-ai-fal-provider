@@ -52,44 +52,34 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
   const defaultCreditCost = config?.defaultCreditCost ?? DEFAULT_CREDIT_COSTS[type];
   const defaultModelId = config?.defaultModelId ?? DEFAULT_MODEL_IDS[type];
 
-  const fetchModels = useCallback(async () => {
+  const loadModels = useCallback(() => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const fetchedModels = await falModelsService.getModels(type);
-      setModels(fetchedModels);
+    const fetchedModels = falModelsService.getModels(type);
+    setModels(fetchedModels);
 
-      const targetId = config?.initialModelId ?? defaultModelId;
-      const initial =
-        fetchedModels.find((m) => m.id === targetId) ||
-        fetchedModels.find((m) => m.isDefault) ||
-        fetchedModels[0];
+    const targetId = config?.initialModelId ?? defaultModelId;
+    const initial =
+      fetchedModels.find((m) => m.id === targetId) ||
+      fetchedModels.find((m) => m.isDefault) ||
+      fetchedModels[0];
 
-      if (initial) {
-        setSelectedModel(initial);
-      }
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        // eslint-disable-next-line no-console
-        console.log(`[useModels] Loaded ${fetchedModels.length} ${type} models`);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch models";
-      setError(message);
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        // eslint-disable-next-line no-console
-        console.warn(`[useModels] Error fetching ${type} models:`, message);
-      }
-    } finally {
-      setIsLoading(false);
+    if (initial) {
+      setSelectedModel(initial);
     }
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      // eslint-disable-next-line no-console
+      console.log(`[useModels] Loaded ${fetchedModels.length} ${type} models`);
+    }
+
+    setIsLoading(false);
   }, [type, config?.initialModelId, defaultModelId]);
 
   useEffect(() => {
-    void fetchModels();
-  }, [fetchModels]);
+    loadModels();
+  }, [loadModels]);
 
   const selectModel = useCallback(
     (modelId: string) => {
@@ -125,6 +115,6 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
     modelId,
     isLoading,
     error,
-    refreshModels: fetchModels,
+    refreshModels: loadModels,
   };
 }

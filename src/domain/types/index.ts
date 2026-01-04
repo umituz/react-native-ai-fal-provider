@@ -9,3 +9,14 @@ export type {
   ModelSelectionActions,
   UseModelsReturn,
 } from "./model-selection.types";
+
+export type {
+  UpscaleOptions,
+  PhotoRestoreOptions,
+  ImageToImagePromptConfig,
+  RemoveBackgroundOptions,
+  RemoveObjectOptions,
+  ReplaceBackgroundOptions,
+  VideoFromImageOptions,
+  FaceSwapOptions,
+} from "./input-builders.types";

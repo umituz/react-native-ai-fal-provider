@@ -20,12 +20,18 @@ import type {
 import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
+import { FAL_IMAGE_FEATURE_MODELS, FAL_VIDEO_FEATURE_MODELS } from "../../domain/constants/feature-models.constants";
 import {
-  getImageFeatureModel,
-  getVideoFeatureModel,
-  buildImageFeatureInput,
-  buildVideoFeatureInput,
-} from "./fal-feature-builder.service";
+  buildSingleImageInput,
+  buildUpscaleInput,
+  buildPhotoRestoreInput,
+  buildFaceSwapInput,
+  buildRemoveBackgroundInput,
+  buildRemoveObjectInput,
+  buildReplaceBackgroundInput,
+  buildImageToImageInput,
+  buildVideoFromImageInput,
+} from "../utils/input-builders.util";
 
 declare const __DEV__: boolean;
 
@@ -155,7 +161,16 @@ export class FalProvider implements IAIProvider {
     const result = await fal.run(model, { input });
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] run() completed, hasResult:", !!result);
+      console.log("[FalProvider] run() raw result:", JSON.stringify(result, null, 2));
+      console.log("[FalProvider] run() result type:", typeof result);
+      console.log("[FalProvider] run() result keys:", result ? Object.keys(result as object) : "null");
+      const r = result as Record<string, unknown>;
+      if (r?.data) {
+        console.log("[FalProvider] run() has data property, data keys:", Object.keys(r.data as object));
+      }
+      if (r?.images) {
+        console.log("[FalProvider] run() has images property, images:", JSON.stringify(r.images));
+      }
     }
 
     options?.onProgress?.({ progress: 100, status: "COMPLETED" });
@@ -169,19 +184,61 @@ export class FalProvider implements IAIProvider {
   }
 
   getImageFeatureModel(feature: ImageFeatureType): string {
-    return getImageFeatureModel(feature);
+    return FAL_IMAGE_FEATURE_MODELS[feature];
   }
 
   buildImageFeatureInput(feature: ImageFeatureType, data: ImageFeatureInputData): Record<string, unknown> {
-    return buildImageFeatureInput(feature, data);
+    const { imageBase64, targetImageBase64, prompt, options } = data;
+
+    switch (feature) {
+      case "upscale":
+      case "hd-touch-up":
+        return buildUpscaleInput(imageBase64, options);
+
+      case "photo-restore":
+        return buildPhotoRestoreInput(imageBase64, options);
+
+      case "face-swap":
+        if (!targetImageBase64) throw new Error("Face swap requires target image");
+        return buildFaceSwapInput(imageBase64, targetImageBase64, options);
+
+      case "remove-background":
+        return buildRemoveBackgroundInput(imageBase64, options);
+
+      case "remove-object":
+        return buildRemoveObjectInput(imageBase64, options);
+
+      case "replace-background":
+        if (!prompt) throw new Error("Replace background requires prompt");
+        return buildReplaceBackgroundInput(imageBase64, { prompt, ...options });
+
+      case "anime-selfie":
+        return buildImageToImageInput(imageBase64, {
+          prompt: prompt || (options?.prompt as string) || "",
+          negativePrompt: (options?.negativePrompt as string) || "",
+          strength: options?.strength as number,
+          num_inference_steps: options?.num_inference_steps as number,
+          guidance_scale: options?.guidance_scale as number,
+        });
+
+      default:
+        return buildSingleImageInput(imageBase64, options);
+    }
   }
 
   getVideoFeatureModel(feature: VideoFeatureType): string {
-    return getVideoFeatureModel(feature);
+    return FAL_VIDEO_FEATURE_MODELS[feature];
   }
 
-  buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
-    return buildVideoFeatureInput(feature, data);
+  buildVideoFeatureInput(_feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
+    const { sourceImageBase64, targetImageBase64, prompt, options } = data;
+
+    return buildVideoFromImageInput(sourceImageBase64, {
+      motion_prompt: prompt,
+      target_image: targetImageBase64,
+      duration: options?.duration as number,
+      ...options,
+    });
   }
 }
 

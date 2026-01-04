@@ -9,8 +9,6 @@ export interface FalModelConfig {
   id: string;
   name: string;
   type: FalModelType;
-  /** @deprecated Use `type` instead. Kept for backward compatibility */
-  category?: string;
   isDefault?: boolean;
   isActive?: boolean;
   pricing?: {

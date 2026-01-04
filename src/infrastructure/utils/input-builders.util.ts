@@ -1,51 +1,18 @@
 /**
- * FAL Input Builders
- * Constructs FAL API input from normalized data
+ * FAL Input Builders - Constructs FAL API input from normalized data
+ * Provider-agnostic: accepts prompt config as parameter, not imported
  */
 
-// =============================================================================
-// TYPES
-// =============================================================================
-
-export interface UpscaleOptions {
-  scaleFactor?: number;
-  enhanceFaces?: boolean;
-}
-
-export interface PhotoRestoreOptions {
-  enhanceFaces?: boolean;
-}
-
-export interface FaceSwapOptions {
-  // No additional options
-}
-
-export interface AnimeSelfieOptions {
-  style?: string;
-}
-
-export interface RemoveBackgroundOptions {
-  // No additional options
-}
-
-export interface RemoveObjectOptions {
-  mask?: string;
-  prompt?: string;
-}
-
-export interface ReplaceBackgroundOptions {
-  prompt: string;
-}
-
-export interface VideoFromImageOptions {
-  target_image?: string;
-  motion_prompt?: string;
-  duration?: number;
-}
-
-// =============================================================================
-// BASE BUILDERS
-// =============================================================================
+import type {
+  UpscaleOptions,
+  PhotoRestoreOptions,
+  ImageToImagePromptConfig,
+  RemoveBackgroundOptions,
+  RemoveObjectOptions,
+  ReplaceBackgroundOptions,
+  VideoFromImageOptions,
+  FaceSwapOptions,
+} from "../../domain/types";
 
 /**
  * Build FAL single image input format
@@ -142,21 +109,19 @@ export function buildFaceSwapInput(
 }
 
 /**
- * Build anime selfie input for FAL flux/dev/image-to-image
+ * Build image-to-image input for FAL flux/dev/image-to-image
+ * Accepts prompt config as parameter for provider-agnostic usage
  */
-export function buildAnimeSelfieInput(
+export function buildImageToImageInput(
   base64: string,
-  options?: AnimeSelfieOptions,
+  promptConfig: ImageToImagePromptConfig,
 ): Record<string, unknown> {
-  const stylePrompt = options?.style
-    ? `${options.style} anime style portrait, high quality anime art`
-    : "anime style portrait, beautiful anime character, high quality anime art, studio quality";
-
   return buildSingleImageInput(base64, {
-    prompt: stylePrompt,
-    strength: 0.75,
-    num_inference_steps: 30,
-    guidance_scale: 7.5,
+    prompt: promptConfig.prompt,
+    negative_prompt: promptConfig.negativePrompt,
+    strength: promptConfig.strength ?? 0.85,
+    num_inference_steps: promptConfig.num_inference_steps ?? 50,
+    guidance_scale: promptConfig.guidance_scale ?? 7.5,
   });
 }
 

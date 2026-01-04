@@ -39,7 +39,7 @@ export interface ModelSelectionActions {
   /** Select a model by ID */
   readonly selectModel: (modelId: string) => void;
   /** Refresh models from source */
-  readonly refreshModels: () => Promise<void>;
+  readonly refreshModels: () => void;
 }
 
 export type UseModelsReturn = ModelSelectionState & ModelSelectionActions;
