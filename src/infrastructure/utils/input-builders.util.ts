@@ -126,13 +126,19 @@ export function buildImageToImageInput(
 }
 
 /**
- * Build remove background input for FAL bria/background/remove
+ * Build remove background input for FAL birefnet
+ * Uses General Use (Light) model for fast processing
  */
 export function buildRemoveBackgroundInput(
   base64: string,
   _options?: RemoveBackgroundOptions,
 ): Record<string, unknown> {
-  return buildSingleImageInput(base64);
+  return buildSingleImageInput(base64, {
+    model: "General Use (Light)",
+    operating_resolution: "1024x1024",
+    output_format: "png",
+    refine_foreground: true,
+  });
 }
 
 /**

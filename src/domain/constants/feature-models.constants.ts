@@ -22,7 +22,7 @@ export const FAL_IMAGE_FEATURE_MODELS: Record<ImageFeatureType, string> = {
   "photo-restore": "fal-ai/aura-sr",
   "face-swap": "fal-ai/face-swap",
   "anime-selfie": "fal-ai/flux-pro/kontext",
-  "remove-background": "fal-ai/bria/background/remove",
+  "remove-background": "fal-ai/birefnet",
   "remove-object": "fal-ai/flux-kontext-lora/inpaint",
   "hd-touch-up": "fal-ai/clarity-upscaler",
   "replace-background": "fal-ai/bria/background/replace",
