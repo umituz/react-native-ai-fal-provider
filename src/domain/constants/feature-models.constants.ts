@@ -21,7 +21,7 @@ export const FAL_IMAGE_FEATURE_MODELS: Record<ImageFeatureType, string> = {
   "upscale": "fal-ai/clarity-upscaler",
   "photo-restore": "fal-ai/aura-sr",
   "face-swap": "fal-ai/face-swap",
-  "anime-selfie": "fal-ai/anime-image-generator",
+  "anime-selfie": "fal-ai/flux/dev/image-to-image",
   "remove-background": "fal-ai/bria/background/remove",
   "remove-object": "fal-ai/flux-kontext-lora/inpaint",
   "hd-touch-up": "fal-ai/clarity-upscaler",

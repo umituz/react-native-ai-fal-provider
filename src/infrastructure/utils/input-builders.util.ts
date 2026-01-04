@@ -142,14 +142,21 @@ export function buildFaceSwapInput(
 }
 
 /**
- * Build anime selfie input for FAL anime-image-generator
+ * Build anime selfie input for FAL flux/dev/image-to-image
  */
 export function buildAnimeSelfieInput(
   base64: string,
   options?: AnimeSelfieOptions,
 ): Record<string, unknown> {
+  const stylePrompt = options?.style
+    ? `${options.style} anime style portrait, high quality anime art`
+    : "anime style portrait, beautiful anime character, high quality anime art, studio quality";
+
   return buildSingleImageInput(base64, {
-    style: options?.style || "anime",
+    prompt: stylePrompt,
+    strength: 0.75,
+    num_inference_steps: 30,
+    guidance_scale: 7.5,
   });
 }
 

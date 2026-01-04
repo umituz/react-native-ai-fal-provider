@@ -9,7 +9,6 @@ import type {
   AIProviderConfig,
   JobSubmission,
   JobStatus,
-  AIJobStatusType,
   SubscribeOptions,
   RunOptions,
   ImageFeatureType,
@@ -18,7 +17,9 @@ import type {
   VideoFeatureInputData,
   ProviderCapabilities,
 } from "@umituz/react-native-ai-generation-content";
-import type { FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
+import type { FalQueueStatus } from "../../domain/entities/fal.types";
+import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
+import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import {
   getImageFeatureModel,
   getVideoFeatureModel,
@@ -27,51 +28,6 @@ import {
 } from "./fal-feature-builder.service";
 
 declare const __DEV__: boolean;
-
-const DEFAULT_CONFIG = {
-  maxRetries: 3,
-  baseDelay: 1000,
-  maxDelay: 10000,
-  defaultTimeoutMs: 300000,
-  pollInterval: 1000,
-};
-
-const FAL_CAPABILITIES: ProviderCapabilities = {
-  imageFeatures: [
-    "upscale",
-    "photo-restore",
-    "face-swap",
-    "anime-selfie",
-    "remove-background",
-    "remove-object",
-    "hd-touch-up",
-    "replace-background",
-  ] as const,
-  videoFeatures: ["ai-hug", "ai-kiss"] as const,
-  textToImage: true,
-  textToVideo: true,
-  imageToVideo: true,
-  textToVoice: true,
-};
-
-function mapFalStatusToJobStatus(status: FalQueueStatus): JobStatus {
-  const statusMap: Record<string, AIJobStatusType> = {
-    IN_QUEUE: "IN_QUEUE",
-    IN_PROGRESS: "IN_PROGRESS",
-    COMPLETED: "COMPLETED",
-    FAILED: "FAILED",
-  };
-
-  return {
-    status: statusMap[status.status] ?? "IN_PROGRESS",
-    logs: status.logs?.map((log: FalLogEntry) => ({
-      message: log.message,
-      level: log.level ?? "info",
-      timestamp: log.timestamp,
-    })),
-    queuePosition: status.queuePosition,
-  };
-}
 
 export class FalProvider implements IAIProvider {
   readonly providerId = "fal";
@@ -83,14 +39,14 @@ export class FalProvider implements IAIProvider {
 
   initialize(configData: AIProviderConfig): void {
     this.apiKey = configData.apiKey;
-    this.config = { ...DEFAULT_CONFIG, ...configData };
+    this.config = { ...DEFAULT_FAL_CONFIG, ...configData };
 
     fal.config({
       credentials: configData.apiKey,
       retry: {
-        maxRetries: configData.maxRetries ?? DEFAULT_CONFIG.maxRetries,
-        baseDelay: configData.baseDelay ?? DEFAULT_CONFIG.baseDelay,
-        maxDelay: configData.maxDelay ?? DEFAULT_CONFIG.maxDelay,
+        maxRetries: configData.maxRetries ?? DEFAULT_FAL_CONFIG.maxRetries,
+        baseDelay: configData.baseDelay ?? DEFAULT_FAL_CONFIG.baseDelay,
+        maxDelay: configData.maxDelay ?? DEFAULT_FAL_CONFIG.maxDelay,
       },
     });
 
@@ -151,8 +107,7 @@ export class FalProvider implements IAIProvider {
     options?: SubscribeOptions<T>,
   ): Promise<T> {
     this.validateInitialization();
-
-    const timeoutMs = options?.timeoutMs ?? this.config?.defaultTimeoutMs ?? DEFAULT_CONFIG.defaultTimeoutMs;
+    const timeoutMs = options?.timeoutMs ?? this.config?.defaultTimeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -164,7 +119,7 @@ export class FalProvider implements IAIProvider {
         fal.subscribe(model, {
           input,
           logs: true,
-          pollInterval: DEFAULT_CONFIG.pollInterval,
+          pollInterval: DEFAULT_FAL_CONFIG.pollInterval,
           onQueueUpdate: (update: { status: string; logs?: unknown[] }) => {
             if (typeof __DEV__ !== "undefined" && __DEV__) {
               console.log("[FalProvider] Queue update:", JSON.stringify(update));

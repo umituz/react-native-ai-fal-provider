@@ -88,7 +88,7 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
   }, [type, config?.initialModelId, defaultModelId]);
 
   useEffect(() => {
-    fetchModels();
+    void fetchModels();
   }, [fetchModels]);
 
   const selectModel = useCallback(
