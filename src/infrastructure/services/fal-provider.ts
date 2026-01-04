@@ -52,7 +52,6 @@ const FAL_CAPABILITIES: ProviderCapabilities = {
   textToVideo: true,
   imageToVideo: true,
   textToVoice: true,
-  textToText: true,
 };
 
 function mapFalStatusToJobStatus(status: FalQueueStatus): JobStatus {
@@ -82,16 +81,16 @@ export class FalProvider implements IAIProvider {
   private config: AIProviderConfig | null = null;
   private initialized = false;
 
-  initialize(config: AIProviderConfig): void {
-    this.apiKey = config.apiKey;
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  initialize(configData: AIProviderConfig): void {
+    this.apiKey = configData.apiKey;
+    this.config = { ...DEFAULT_CONFIG, ...configData };
 
     fal.config({
-      credentials: config.apiKey,
+      credentials: configData.apiKey,
       retry: {
-        maxRetries: config.maxRetries ?? DEFAULT_CONFIG.maxRetries,
-        baseDelay: config.baseDelay ?? DEFAULT_CONFIG.baseDelay,
-        maxDelay: config.maxDelay ?? DEFAULT_CONFIG.maxDelay,
+        maxRetries: configData.maxRetries ?? DEFAULT_CONFIG.maxRetries,
+        baseDelay: configData.baseDelay ?? DEFAULT_CONFIG.baseDelay,
+        maxDelay: configData.maxDelay ?? DEFAULT_CONFIG.maxDelay,
       },
     });
 

@@ -6,7 +6,7 @@
 import { useState, useCallback, useRef } from "react";
 import { falProvider } from "../../infrastructure/services/fal-provider";
 import { mapFalError, isFalErrorRetryable } from "../../infrastructure/utils/error-mapper";
-import type { FalJobInput, FalQueueStatus } from "../../domain/entities/fal.types";
+import type { FalJobInput, FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
 import type { FalErrorInfo } from "../../domain/entities/error.types";
 
 export interface UseFalGenerationOptions {
@@ -49,7 +49,7 @@ export function useFalGeneration<T = unknown>(
             options?.onProgress?.({
               status: status.status,
               requestId: "",
-              logs: status.logs?.map((log) => ({
+              logs: status.logs?.map((log: FalLogEntry) => ({
                 message: log.message,
                 level: log.level,
                 timestamp: log.timestamp,
