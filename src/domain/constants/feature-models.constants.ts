@@ -37,20 +37,6 @@ export const FAL_VIDEO_FEATURE_MODELS: Record<VideoFeatureType, string> = {
 };
 
 /**
- * Get FAL model ID for an image feature
- */
-export function getFalImageFeatureModel(feature: ImageFeatureType): string {
-  return FAL_IMAGE_FEATURE_MODELS[feature];
-}
-
-/**
- * Get FAL model ID for a video feature
- */
-export function getFalVideoFeatureModel(feature: VideoFeatureType): string {
-  return FAL_VIDEO_FEATURE_MODELS[feature];
-}
-
-/**
  * Get all feature model configs
  */
 export function getAllFeatureModels(): FeatureModelConfig[] {

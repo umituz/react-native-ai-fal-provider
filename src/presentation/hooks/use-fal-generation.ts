@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { falClientService } from "../../infrastructure/services/fal-client.service";
+import { falProvider } from "../../infrastructure/services/fal-provider";
 import { mapFalError, isFalErrorRetryable } from "../../infrastructure/utils/error-mapper";
 import type { FalJobInput, FalQueueStatus } from "../../domain/entities/fal.types";
 import type { FalErrorInfo } from "../../domain/entities/error.types";
@@ -42,9 +42,21 @@ export function useFalGeneration<T = unknown>(
       setData(null);
 
       try {
-        const result = await falClientService.subscribe<T>(modelEndpoint, input, {
+        const result = await falProvider.subscribe<T>(modelEndpoint, input, {
           timeoutMs: options?.timeoutMs,
-          onQueueUpdate: options?.onProgress,
+          onQueueUpdate: (status) => {
+            // Map JobStatus to FalQueueStatus for backward compatibility
+            options?.onProgress?.({
+              status: status.status,
+              requestId: "",
+              logs: status.logs?.map((log) => ({
+                message: log.message,
+                level: log.level,
+                timestamp: log.timestamp,
+              })),
+              queuePosition: status.queuePosition,
+            });
+          },
         });
 
         setData(result);

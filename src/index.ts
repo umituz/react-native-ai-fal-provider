@@ -66,10 +66,14 @@ export type { FalModelConfig } from "./domain/constants/default-models.constants
 export {
   FAL_IMAGE_FEATURE_MODELS,
   FAL_VIDEO_FEATURE_MODELS,
-  getFalImageFeatureModel,
-  getFalVideoFeatureModel,
   getAllFeatureModels,
 } from "./domain/constants/feature-models.constants";
+
+// Feature model getters (use these instead of deprecated getFal* functions)
+export {
+  getImageFeatureModel,
+  getVideoFeatureModel,
+} from "./infrastructure/services";
 
 export type {
   FeatureModelConfig,
@@ -85,7 +89,7 @@ export { FalProvider, falProvider } from "./infrastructure/services";
 // INFRASTRUCTURE LAYER - Services
 // =============================================================================
 
-export { falClientService, falModelsService } from "./infrastructure/services";
+export { falModelsService } from "./infrastructure/services";
 export type { ModelFetcher } from "./infrastructure/services";
 
 // =============================================================================

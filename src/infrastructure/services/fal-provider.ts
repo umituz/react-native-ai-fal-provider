@@ -18,25 +18,13 @@ import type {
   VideoFeatureInputData,
   ProviderCapabilities,
 } from "@umituz/react-native-ai-generation-content";
-import type {
-  FalQueueStatus,
-  FalLogEntry,
-} from "../../domain/entities/fal.types";
+import type { FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
 import {
-  FAL_IMAGE_FEATURE_MODELS,
-  FAL_VIDEO_FEATURE_MODELS,
-} from "../../domain/constants/feature-models.constants";
-import {
-  buildUpscaleInput,
-  buildPhotoRestoreInput,
-  buildVideoFromImageInput,
-  buildFaceSwapInput,
-  buildAnimeSelfieInput,
-  buildRemoveBackgroundInput,
-  buildRemoveObjectInput,
-  buildReplaceBackgroundInput,
-  buildHDTouchUpInput,
-} from "../utils/input-builders.util";
+  getImageFeatureModel,
+  getVideoFeatureModel,
+  buildImageFeatureInput,
+  buildVideoFeatureInput,
+} from "./fal-feature-builder.service";
 
 declare const __DEV__: boolean;
 
@@ -45,11 +33,9 @@ const DEFAULT_CONFIG = {
   baseDelay: 1000,
   maxDelay: 10000,
   defaultTimeoutMs: 300000,
+  pollInterval: 1000,
 };
 
-/**
- * FAL provider capabilities
- */
 const FAL_CAPABILITIES: ProviderCapabilities = {
   imageFeatures: [
     "upscale",
@@ -112,7 +98,6 @@ export class FalProvider implements IAIProvider {
     this.initialized = true;
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      // eslint-disable-next-line no-console
       console.log("[FalProvider] Initialized");
     }
   }
@@ -139,14 +124,9 @@ export class FalProvider implements IAIProvider {
     }
   }
 
-  async submitJob(
-    model: string,
-    input: Record<string, unknown>,
-  ): Promise<JobSubmission> {
+  async submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
     this.validateInitialization();
-
     const result = await fal.queue.submit(model, { input });
-
     return {
       requestId: result.request_id,
       statusUrl: result.status_url,
@@ -156,20 +136,13 @@ export class FalProvider implements IAIProvider {
 
   async getJobStatus(model: string, requestId: string): Promise<JobStatus> {
     this.validateInitialization();
-
     const status = await fal.queue.status(model, { requestId, logs: true });
-
     return mapFalStatusToJobStatus(status as unknown as FalQueueStatus);
   }
 
-  async getJobResult<T = unknown>(
-    model: string,
-    requestId: string,
-  ): Promise<T> {
+  async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
     this.validateInitialization();
-
     const result = await fal.queue.result(model, { requestId });
-
     return result.data as T;
   }
 
@@ -180,14 +153,10 @@ export class FalProvider implements IAIProvider {
   ): Promise<T> {
     this.validateInitialization();
 
-    const timeoutMs =
-      options?.timeoutMs ??
-      this.config?.defaultTimeoutMs ??
-      DEFAULT_CONFIG.defaultTimeoutMs;
+    const timeoutMs = options?.timeoutMs ?? this.config?.defaultTimeoutMs ?? DEFAULT_CONFIG.defaultTimeoutMs;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      // eslint-disable-next-line no-console
       console.log("[FalProvider] Subscribe started:", { model, timeoutMs });
     }
 
@@ -195,62 +164,47 @@ export class FalProvider implements IAIProvider {
       const result = await Promise.race([
         fal.subscribe(model, {
           input,
-          onQueueUpdate: (update) => {
-            const jobStatus = mapFalStatusToJobStatus(
-              update as unknown as FalQueueStatus,
-            );
+          logs: true,
+          pollInterval: DEFAULT_CONFIG.pollInterval,
+          onQueueUpdate: (update: { status: string; logs?: unknown[] }) => {
+            if (typeof __DEV__ !== "undefined" && __DEV__) {
+              console.log("[FalProvider] Queue update:", JSON.stringify(update));
+            }
+            const jobStatus = mapFalStatusToJobStatus(update as unknown as FalQueueStatus);
             options?.onQueueUpdate?.(jobStatus);
           },
         }),
         new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(
-            () => reject(new Error("FAL subscription timeout")),
-            timeoutMs,
-          );
+          timeoutId = setTimeout(() => reject(new Error("FAL subscription timeout")), timeoutMs);
         }),
       ]);
 
       if (typeof __DEV__ !== "undefined" && __DEV__) {
-        // eslint-disable-next-line no-console
         console.log("[FalProvider] Subscribe completed:", { model });
       }
 
       options?.onResult?.(result as T);
-
       return result as T;
     } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 
-  async run<T = unknown>(
-    model: string,
-    input: Record<string, unknown>,
-    options?: RunOptions,
-  ): Promise<T> {
+  async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
     this.validateInitialization();
-
     options?.onProgress?.({ progress: 10, status: "IN_PROGRESS" });
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      // eslint-disable-next-line no-console
-      console.log("[FalProvider] run() input:", { model, input });
+      console.log("[FalProvider] run() model:", model, "inputKeys:", Object.keys(input));
     }
 
     const result = await fal.run(model, { input });
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      // eslint-disable-next-line no-console
-      console.log(
-        "[FalProvider] run() raw result:",
-        JSON.stringify(result, null, 2),
-      );
+      console.log("[FalProvider] run() completed, hasResult:", !!result);
     }
 
     options?.onProgress?.({ progress: 100, status: "COMPLETED" });
-
     return result as T;
   }
 
@@ -260,77 +214,20 @@ export class FalProvider implements IAIProvider {
     this.initialized = false;
   }
 
-  /**
-   * Get model ID for an IMAGE feature
-   */
   getImageFeatureModel(feature: ImageFeatureType): string {
-    return FAL_IMAGE_FEATURE_MODELS[feature];
+    return getImageFeatureModel(feature);
   }
 
-  /**
-   * Build input for an IMAGE feature
-   */
-  buildImageFeatureInput(
-    feature: ImageFeatureType,
-    data: ImageFeatureInputData,
-  ): Record<string, unknown> {
-    const { imageBase64, targetImageBase64, prompt, options } = data;
-
-    switch (feature) {
-      case "upscale":
-        return buildUpscaleInput(imageBase64, options);
-      case "photo-restore":
-        return buildPhotoRestoreInput(imageBase64, options);
-      case "face-swap":
-        if (!targetImageBase64) {
-          throw new Error("Face swap requires target image");
-        }
-        return buildFaceSwapInput(imageBase64, targetImageBase64, options);
-      case "anime-selfie":
-        return buildAnimeSelfieInput(imageBase64, options);
-      case "remove-background":
-        return buildRemoveBackgroundInput(imageBase64, options);
-      case "remove-object":
-        return buildRemoveObjectInput(imageBase64, { prompt, ...options });
-      case "hd-touch-up":
-        return buildHDTouchUpInput(imageBase64, options);
-      case "replace-background":
-        if (!prompt) {
-          throw new Error("Replace background requires prompt");
-        }
-        return buildReplaceBackgroundInput(imageBase64, { prompt });
-      default:
-        throw new Error(`Unknown image feature: ${String(feature)}`);
-    }
+  buildImageFeatureInput(feature: ImageFeatureType, data: ImageFeatureInputData): Record<string, unknown> {
+    return buildImageFeatureInput(feature, data);
   }
 
-  /**
-   * Get model ID for a VIDEO feature
-   */
   getVideoFeatureModel(feature: VideoFeatureType): string {
-    return FAL_VIDEO_FEATURE_MODELS[feature];
+    return getVideoFeatureModel(feature);
   }
 
-  /**
-   * Build input for a VIDEO feature
-   */
-  buildVideoFeatureInput(
-    feature: VideoFeatureType,
-    data: VideoFeatureInputData,
-  ): Record<string, unknown> {
-    const { sourceImageBase64, targetImageBase64, prompt, options } = data;
-
-    switch (feature) {
-      case "ai-hug":
-      case "ai-kiss":
-        return buildVideoFromImageInput(sourceImageBase64, {
-          target_image: targetImageBase64,
-          motion_prompt: prompt,
-          ...options,
-        });
-      default:
-        throw new Error(`Unknown video feature: ${String(feature)}`);
-    }
+  buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
+    return buildVideoFeatureInput(feature, data);
   }
 }
 
