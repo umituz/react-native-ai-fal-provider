@@ -169,3 +169,22 @@ export function buildHDTouchUpInput(
 ): Record<string, unknown> {
   return buildUpscaleInput(base64, options);
 }
+
+/**
+ * Build Kontext style transfer input for FAL flux-pro/kontext
+ * Instruction-based editing that preserves character identity
+ */
+export interface KontextStyleTransferOptions {
+  prompt: string;
+  guidance_scale?: number;
+}
+
+export function buildKontextStyleTransferInput(
+  base64: string,
+  options: KontextStyleTransferOptions,
+): Record<string, unknown> {
+  return buildSingleImageInput(base64, {
+    prompt: options.prompt,
+    guidance_scale: options.guidance_scale ?? 3.5,
+  });
+}

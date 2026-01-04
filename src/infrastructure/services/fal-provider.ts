@@ -29,7 +29,7 @@ import {
   buildRemoveBackgroundInput,
   buildRemoveObjectInput,
   buildReplaceBackgroundInput,
-  buildImageToImageInput,
+  buildKontextStyleTransferInput,
   buildVideoFromImageInput,
 } from "../utils/input-builders.util";
 
@@ -213,12 +213,10 @@ export class FalProvider implements IAIProvider {
         return buildReplaceBackgroundInput(imageBase64, { prompt, ...options });
 
       case "anime-selfie":
-        return buildImageToImageInput(imageBase64, {
-          prompt: prompt || (options?.prompt as string) || "",
-          negativePrompt: (options?.negativePrompt as string) || "",
-          strength: options?.strength as number,
-          num_inference_steps: options?.num_inference_steps as number,
-          guidance_scale: options?.guidance_scale as number,
+        return buildKontextStyleTransferInput(imageBase64, {
+          prompt: prompt || (options?.prompt as string) ||
+            "Transform this person into anime style illustration. Keep the same gender, face structure, hair color, eye color, and expression. Make it look like a high-quality anime character portrait with vibrant colors and clean lineart.",
+          guidance_scale: (options?.guidance_scale as number) ?? 4.0,
         });
 
       default:
