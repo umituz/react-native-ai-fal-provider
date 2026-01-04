@@ -28,7 +28,8 @@ export type FalModelType =
   | "text-to-video"
   | "text-to-voice"
   | "image-to-video"
-  | "image-to-image";
+  | "image-to-image"
+  | "text-to-text";
 
 export interface FalModelPricing {
   creditsPerGeneration: number;

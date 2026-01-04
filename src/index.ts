@@ -43,16 +43,50 @@ export type {
 } from "./domain/entities/error.types";
 
 // =============================================================================
+// DOMAIN LAYER - Default Models
+// =============================================================================
+
+export {
+  DEFAULT_TEXT_TO_IMAGE_MODELS,
+  DEFAULT_TEXT_TO_VOICE_MODELS,
+  DEFAULT_TEXT_TO_VIDEO_MODELS,
+  DEFAULT_IMAGE_TO_VIDEO_MODELS,
+  getAllDefaultModels,
+  getDefaultModelsByType,
+  getDefaultModel,
+  findModelById,
+} from "./domain/constants/default-models.constants";
+
+export type { FalModelConfig } from "./domain/constants/default-models.constants";
+
+// =============================================================================
+// DOMAIN LAYER - Feature Models
+// =============================================================================
+
+export {
+  FAL_IMAGE_FEATURE_MODELS,
+  FAL_VIDEO_FEATURE_MODELS,
+  getFalImageFeatureModel,
+  getFalVideoFeatureModel,
+  getAllFeatureModels,
+} from "./domain/constants/feature-models.constants";
+
+export type {
+  FeatureModelConfig,
+} from "./domain/constants/feature-models.constants";
+
+// =============================================================================
 // INFRASTRUCTURE LAYER - Provider (IAIProvider Implementation)
 // =============================================================================
 
 export { FalProvider, falProvider } from "./infrastructure/services";
 
 // =============================================================================
-// INFRASTRUCTURE LAYER - Services (Low-level client)
+// INFRASTRUCTURE LAYER - Services
 // =============================================================================
 
-export { falClientService } from "./infrastructure/services";
+export { falClientService, falModelsService } from "./infrastructure/services";
+export type { ModelFetcher } from "./infrastructure/services";
 
 // =============================================================================
 // INFRASTRUCTURE LAYER - Utils
@@ -63,7 +97,42 @@ export {
   falErrorMapper,
   mapFalError,
   isFalErrorRetryable,
+  // Input builders
+  buildSingleImageInput,
+  buildDualImageInput,
+  buildUpscaleInput,
+  buildPhotoRestoreInput,
+  buildVideoFromImageInput,
+  buildFaceSwapInput,
+  buildAnimeSelfieInput,
+  buildRemoveBackgroundInput,
+  buildRemoveObjectInput,
+  buildReplaceBackgroundInput,
+  buildHDTouchUpInput,
 } from "./infrastructure/utils";
+
+export type {
+  UpscaleOptions,
+  PhotoRestoreOptions,
+  FaceSwapOptions,
+  AnimeSelfieOptions,
+  RemoveBackgroundOptions,
+  RemoveObjectOptions,
+  ReplaceBackgroundOptions,
+  VideoFromImageOptions,
+} from "./infrastructure/utils";
+
+// =============================================================================
+// DOMAIN LAYER - Model Selection Types
+// =============================================================================
+
+export type {
+  ModelType,
+  ModelSelectionConfig,
+  ModelSelectionState,
+  ModelSelectionActions,
+  UseModelsReturn,
+} from "./domain/types";
 
 // =============================================================================
 // PRESENTATION LAYER - Hooks
@@ -71,9 +140,11 @@ export {
 
 export {
   useFalGeneration,
+  useModels,
 } from "./presentation/hooks";
 
 export type {
   UseFalGenerationOptions,
   UseFalGenerationResult,
+  UseModelsProps,
 } from "./presentation/hooks";

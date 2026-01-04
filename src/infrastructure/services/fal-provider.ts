@@ -11,8 +11,32 @@ import type {
   JobStatus,
   AIJobStatusType,
   SubscribeOptions,
+  RunOptions,
+  ImageFeatureType,
+  VideoFeatureType,
+  ImageFeatureInputData,
+  VideoFeatureInputData,
+  ProviderCapabilities,
 } from "@umituz/react-native-ai-generation-content";
-import type { FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
+import type {
+  FalQueueStatus,
+  FalLogEntry,
+} from "../../domain/entities/fal.types";
+import {
+  FAL_IMAGE_FEATURE_MODELS,
+  FAL_VIDEO_FEATURE_MODELS,
+} from "../../domain/constants/feature-models.constants";
+import {
+  buildUpscaleInput,
+  buildPhotoRestoreInput,
+  buildVideoFromImageInput,
+  buildFaceSwapInput,
+  buildAnimeSelfieInput,
+  buildRemoveBackgroundInput,
+  buildRemoveObjectInput,
+  buildReplaceBackgroundInput,
+  buildHDTouchUpInput,
+} from "../utils/input-builders.util";
 
 declare const __DEV__: boolean;
 
@@ -21,6 +45,28 @@ const DEFAULT_CONFIG = {
   baseDelay: 1000,
   maxDelay: 10000,
   defaultTimeoutMs: 300000,
+};
+
+/**
+ * FAL provider capabilities
+ */
+const FAL_CAPABILITIES: ProviderCapabilities = {
+  imageFeatures: [
+    "upscale",
+    "photo-restore",
+    "face-swap",
+    "anime-selfie",
+    "remove-background",
+    "remove-object",
+    "hd-touch-up",
+    "replace-background",
+  ] as const,
+  videoFeatures: ["ai-hug", "ai-kiss"] as const,
+  textToImage: true,
+  textToVideo: true,
+  imageToVideo: true,
+  textToVoice: true,
+  textToText: true,
 };
 
 function mapFalStatusToJobStatus(status: FalQueueStatus): JobStatus {
@@ -75,6 +121,18 @@ export class FalProvider implements IAIProvider {
     return this.initialized;
   }
 
+  getCapabilities(): ProviderCapabilities {
+    return FAL_CAPABILITIES;
+  }
+
+  isFeatureSupported(feature: ImageFeatureType | VideoFeatureType): boolean {
+    const capabilities = this.getCapabilities();
+    return (
+      capabilities.imageFeatures.includes(feature as ImageFeatureType) ||
+      capabilities.videoFeatures.includes(feature as VideoFeatureType)
+    );
+  }
+
   private validateInitialization(): void {
     if (!this.apiKey || !this.initialized) {
       throw new Error("FAL provider not initialized. Call initialize() first.");
@@ -104,7 +162,10 @@ export class FalProvider implements IAIProvider {
     return mapFalStatusToJobStatus(status as unknown as FalQueueStatus);
   }
 
-  async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
+  async getJobResult<T = unknown>(
+    model: string,
+    requestId: string,
+  ): Promise<T> {
     this.validateInitialization();
 
     const result = await fal.queue.result(model, { requestId });
@@ -119,7 +180,10 @@ export class FalProvider implements IAIProvider {
   ): Promise<T> {
     this.validateInitialization();
 
-    const timeoutMs = options?.timeoutMs ?? this.config?.defaultTimeoutMs ?? DEFAULT_CONFIG.defaultTimeoutMs;
+    const timeoutMs =
+      options?.timeoutMs ??
+      this.config?.defaultTimeoutMs ??
+      DEFAULT_CONFIG.defaultTimeoutMs;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -132,7 +196,9 @@ export class FalProvider implements IAIProvider {
         fal.subscribe(model, {
           input,
           onQueueUpdate: (update) => {
-            const jobStatus = mapFalStatusToJobStatus(update as unknown as FalQueueStatus);
+            const jobStatus = mapFalStatusToJobStatus(
+              update as unknown as FalQueueStatus,
+            );
             options?.onQueueUpdate?.(jobStatus);
           },
         }),
@@ -159,10 +225,31 @@ export class FalProvider implements IAIProvider {
     }
   }
 
-  async run<T = unknown>(model: string, input: Record<string, unknown>): Promise<T> {
+  async run<T = unknown>(
+    model: string,
+    input: Record<string, unknown>,
+    options?: RunOptions,
+  ): Promise<T> {
     this.validateInitialization();
 
+    options?.onProgress?.({ progress: 10, status: "IN_PROGRESS" });
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      // eslint-disable-next-line no-console
+      console.log("[FalProvider] run() input:", { model, input });
+    }
+
     const result = await fal.run(model, { input });
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[FalProvider] run() raw result:",
+        JSON.stringify(result, null, 2),
+      );
+    }
+
+    options?.onProgress?.({ progress: 100, status: "COMPLETED" });
 
     return result as T;
   }
@@ -171,6 +258,79 @@ export class FalProvider implements IAIProvider {
     this.apiKey = null;
     this.config = null;
     this.initialized = false;
+  }
+
+  /**
+   * Get model ID for an IMAGE feature
+   */
+  getImageFeatureModel(feature: ImageFeatureType): string {
+    return FAL_IMAGE_FEATURE_MODELS[feature];
+  }
+
+  /**
+   * Build input for an IMAGE feature
+   */
+  buildImageFeatureInput(
+    feature: ImageFeatureType,
+    data: ImageFeatureInputData,
+  ): Record<string, unknown> {
+    const { imageBase64, targetImageBase64, prompt, options } = data;
+
+    switch (feature) {
+      case "upscale":
+        return buildUpscaleInput(imageBase64, options);
+      case "photo-restore":
+        return buildPhotoRestoreInput(imageBase64, options);
+      case "face-swap":
+        if (!targetImageBase64) {
+          throw new Error("Face swap requires target image");
+        }
+        return buildFaceSwapInput(imageBase64, targetImageBase64, options);
+      case "anime-selfie":
+        return buildAnimeSelfieInput(imageBase64, options);
+      case "remove-background":
+        return buildRemoveBackgroundInput(imageBase64, options);
+      case "remove-object":
+        return buildRemoveObjectInput(imageBase64, { prompt, ...options });
+      case "hd-touch-up":
+        return buildHDTouchUpInput(imageBase64, options);
+      case "replace-background":
+        if (!prompt) {
+          throw new Error("Replace background requires prompt");
+        }
+        return buildReplaceBackgroundInput(imageBase64, { prompt });
+      default:
+        throw new Error(`Unknown image feature: ${String(feature)}`);
+    }
+  }
+
+  /**
+   * Get model ID for a VIDEO feature
+   */
+  getVideoFeatureModel(feature: VideoFeatureType): string {
+    return FAL_VIDEO_FEATURE_MODELS[feature];
+  }
+
+  /**
+   * Build input for a VIDEO feature
+   */
+  buildVideoFeatureInput(
+    feature: VideoFeatureType,
+    data: VideoFeatureInputData,
+  ): Record<string, unknown> {
+    const { sourceImageBase64, targetImageBase64, prompt, options } = data;
+
+    switch (feature) {
+      case "ai-hug":
+      case "ai-kiss":
+        return buildVideoFromImageInput(sourceImageBase64, {
+          target_image: targetImageBase64,
+          motion_prompt: prompt,
+          ...options,
+        });
+      default:
+        throw new Error(`Unknown video feature: ${String(feature)}`);
+    }
   }
 }
 
