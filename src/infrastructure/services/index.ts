@@ -7,6 +7,7 @@ import type { ImageFeatureType, VideoFeatureType } from "@umituz/react-native-ai
 
 export { FalProvider, falProvider } from "./fal-provider";
 export { falModelsService, type FalModelConfig, type ModelFetcher } from "./fal-models.service";
+export { NSFWContentError } from "./nsfw-content-error";
 
 export function getImageFeatureModel(feature: ImageFeatureType): string {
   return FAL_IMAGE_FEATURE_MODELS[feature];

@@ -25,7 +25,7 @@ export type { FeatureModelConfig } from "./domain/constants/feature-models.const
 
 export {
   FalProvider, falProvider, falModelsService,
-  getImageFeatureModel, getVideoFeatureModel,
+  getImageFeatureModel, getVideoFeatureModel, NSFWContentError,
 } from "./infrastructure/services";
 export type { ModelFetcher } from "./infrastructure/services";
 

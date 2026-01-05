@@ -20,6 +20,7 @@ import type {
 import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
+import { NSFWContentError } from "./nsfw-content-error";
 import { FAL_IMAGE_FEATURE_MODELS, FAL_VIDEO_FEATURE_MODELS } from "../../domain/constants/feature-models.constants";
 import {
   buildSingleImageInput,
@@ -119,17 +120,22 @@ export class FalProvider implements IAIProvider {
       console.log("[FalProvider] Subscribe started:", { model, timeoutMs });
     }
 
+    let lastStatus = "";
+
     try {
       const result = await Promise.race([
         fal.subscribe(model, {
           input,
-          logs: true,
+          logs: false,
           pollInterval: DEFAULT_FAL_CONFIG.pollInterval,
           onQueueUpdate: (update: { status: string; logs?: unknown[] }) => {
-            if (typeof __DEV__ !== "undefined" && __DEV__) {
-              console.log("[FalProvider] Queue update:", JSON.stringify(update));
-            }
             const jobStatus = mapFalStatusToJobStatus(update as unknown as FalQueueStatus);
+            if (jobStatus.status !== lastStatus) {
+              lastStatus = jobStatus.status;
+              if (typeof __DEV__ !== "undefined" && __DEV__) {
+                console.log("[FalProvider] Status:", jobStatus.status);
+              }
+            }
             options?.onQueueUpdate?.(jobStatus);
           },
         }),
@@ -141,6 +147,8 @@ export class FalProvider implements IAIProvider {
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         console.log("[FalProvider] Subscribe completed:", { model });
       }
+
+      this.checkForNSFWContent(result as Record<string, unknown>);
 
       options?.onResult?.(result as T);
       return result as T;
@@ -163,17 +171,27 @@ export class FalProvider implements IAIProvider {
       console.log("[FalProvider] run() raw result:", JSON.stringify(result, null, 2));
       console.log("[FalProvider] run() result type:", typeof result);
       console.log("[FalProvider] run() result keys:", result ? Object.keys(result as object) : "null");
-      const r = result as Record<string, unknown>;
-      if (r?.data) {
-        console.log("[FalProvider] run() has data property, data keys:", Object.keys(r.data as object));
-      }
-      if (r?.images) {
-        console.log("[FalProvider] run() has images property, images:", JSON.stringify(r.images));
-      }
     }
+
+    this.checkForNSFWContent(result as Record<string, unknown>);
 
     options?.onProgress?.({ progress: 100, status: "COMPLETED" });
     return result as T;
+  }
+
+  private checkForNSFWContent(result: Record<string, unknown>): void {
+    const nsfwConcepts = result?.has_nsfw_concepts as boolean[] | undefined;
+
+    if (nsfwConcepts && Array.isArray(nsfwConcepts)) {
+      const hasNSFW = nsfwConcepts.some((value) => value === true);
+
+      if (hasNSFW) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[FalProvider] NSFW content detected, rejecting result");
+        }
+        throw new NSFWContentError();
+      }
+    }
   }
 
   reset(): void {
