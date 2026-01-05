@@ -77,35 +77,47 @@ export function buildPhotoRestoreInput(
 }
 
 /**
- * Build AI hug/kiss video input for FAL wan-25-preview
- * Supports dual images for interaction videos
+ * Build reference-to-video input for FAL Vidu Q1
+ * Supports up to 7 reference images for multi-person scenarios like kiss/hug
+ * Uses reference_image_urls array for consistent character appearance
  */
 export function buildVideoFromImageInput(
   base64: string,
   options?: VideoFromImageOptions,
 ): Record<string, unknown> {
-  const params: Record<string, unknown> = {
-    motion_prompt: options?.motion_prompt,
-    num_frames: options?.duration ? Math.ceil(options.duration * 24) : undefined,
-  };
+  const formatImage = (b64: string) =>
+    b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
 
-  // If target image is provided, use dual image format
+  // Build reference images array - both source and target for kiss/hug
+  const referenceImages: string[] = [formatImage(base64)];
   if (options?.target_image) {
-    return buildDualImageInput(base64, options.target_image, params);
+    referenceImages.push(formatImage(options.target_image));
   }
 
-  return buildSingleImageInput(base64, params);
+  return {
+    prompt: options?.prompt || options?.motion_prompt || "Generate natural motion video",
+    reference_image_urls: referenceImages,
+    aspect_ratio: options?.aspect_ratio || "9:16",
+    movement_amplitude: options?.movement_amplitude || "auto",
+  };
 }
 
 /**
  * Build face swap input for FAL face-swap
+ * FAL API requires: base_image_url (target face) and swap_image_url (face to swap in)
  */
 export function buildFaceSwapInput(
   sourceBase64: string,
   targetBase64: string,
   _options?: FaceSwapOptions,
 ): Record<string, unknown> {
-  return buildDualImageInput(sourceBase64, targetBase64);
+  const formatImage = (b64: string) =>
+    b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
+
+  return {
+    base_image_url: formatImage(sourceBase64),
+    swap_image_url: formatImage(targetBase64),
+  };
 }
 
 /**

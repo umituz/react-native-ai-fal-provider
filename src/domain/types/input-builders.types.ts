@@ -34,8 +34,14 @@ export interface ReplaceBackgroundOptions {
 
 export interface VideoFromImageOptions {
   target_image?: string;
+  prompt?: string;
+  /** @deprecated Use prompt instead */
   motion_prompt?: string;
   duration?: number;
+  /** Vidu Q1: Video aspect ratio - "16:9", "9:16", or "1:1" */
+  aspect_ratio?: "16:9" | "9:16" | "1:1";
+  /** Vidu Q1: Movement intensity - "auto", "small", "medium", or "large" */
+  movement_amplitude?: "auto" | "small" | "medium" | "large";
 }
 
 export interface FaceSwapOptions {

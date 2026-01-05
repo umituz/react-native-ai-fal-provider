@@ -27,7 +27,6 @@ import {
   buildPhotoRestoreInput,
   buildFaceSwapInput,
   buildRemoveBackgroundInput,
-  buildRemoveObjectInput,
   buildReplaceBackgroundInput,
   buildKontextStyleTransferInput,
   buildVideoFromImageInput,
@@ -206,7 +205,16 @@ export class FalProvider implements IAIProvider {
         return buildRemoveBackgroundInput(imageBase64, options);
 
       case "remove-object":
-        return buildRemoveObjectInput(imageBase64, options);
+        // Fooocus inpaint with "Modify Content" mode - no mask required
+        return {
+          inpaint_image_url: imageBase64.startsWith("data:")
+            ? imageBase64
+            : `data:image/jpeg;base64,${imageBase64}`,
+          prompt: prompt || (options?.prompt as string) ||
+            "Remove the object and fill with natural background",
+          inpaint_mode: "Modify Content (add objects, change background, etc.)",
+          guidance_scale: (options?.guidance_scale as number) ?? 4.0,
+        };
 
       case "replace-background":
         if (!prompt) throw new Error("Replace background requires prompt");
@@ -228,14 +236,22 @@ export class FalProvider implements IAIProvider {
     return FAL_VIDEO_FEATURE_MODELS[feature];
   }
 
-  buildVideoFeatureInput(_feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
+  buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
     const { sourceImageBase64, targetImageBase64, prompt, options } = data;
 
+    // Vidu Q1 optimized prompts for reference-to-video with multiple people
+    const defaultPrompts: Record<VideoFeatureType, string> = {
+      "ai-kiss": "A romantic couple kissing tenderly, the two reference people sharing an intimate kiss moment, smooth natural movement, cinematic lighting, high quality video",
+      "ai-hug": "A heartwarming embrace between two people, the reference characters hugging warmly with genuine emotion, gentle natural movement, cinematic quality, touching moment",
+    };
+
+    const effectivePrompt = prompt || defaultPrompts[feature] || "Generate video with natural motion";
+
     return buildVideoFromImageInput(sourceImageBase64, {
-      motion_prompt: prompt,
+      prompt: effectivePrompt,
       target_image: targetImageBase64,
-      duration: options?.duration as number,
-      ...options,
+      aspect_ratio: (options?.aspect_ratio as "16:9" | "9:16" | "1:1") || "9:16",
+      movement_amplitude: (options?.movement_amplitude as "auto" | "small" | "medium" | "large") || "medium",
     });
   }
 }

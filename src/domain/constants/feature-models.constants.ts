@@ -23,17 +23,19 @@ export const FAL_IMAGE_FEATURE_MODELS: Record<ImageFeatureType, string> = {
   "face-swap": "fal-ai/face-swap",
   "anime-selfie": "fal-ai/flux-pro/kontext",
   "remove-background": "fal-ai/birefnet",
-  "remove-object": "fal-ai/flux-kontext-lora/inpaint",
+  "remove-object": "fal-ai/fooocus/inpaint",
   "hd-touch-up": "fal-ai/clarity-upscaler",
   "replace-background": "fal-ai/bria/background/replace",
 };
 
 /**
  * FAL model IDs for VIDEO processing features
+ * Vidu Q1 Reference-to-Video supports up to 7 reference images
+ * Perfect for multi-person scenarios like kiss/hug with two different people
  */
 export const FAL_VIDEO_FEATURE_MODELS: Record<VideoFeatureType, string> = {
-  "ai-hug": "fal-ai/wan-25-preview/image-to-video",
-  "ai-kiss": "fal-ai/wan-25-preview/image-to-video",
+  "ai-hug": "fal-ai/vidu/q1/reference-to-video",
+  "ai-kiss": "fal-ai/vidu/q1/reference-to-video",
 };
 
 /**
