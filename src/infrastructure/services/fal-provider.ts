@@ -159,7 +159,7 @@ export class FalProvider implements IAIProvider {
 
   async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
     this.validateInitialization();
-    options?.onProgress?.({ progress: 10, status: "IN_PROGRESS" });
+    options?.onProgress?.({ progress: 10, status: "IN_PROGRESS" as const });
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.log("[FalProvider] run() model:", model, "inputKeys:", Object.keys(input));
@@ -175,7 +175,7 @@ export class FalProvider implements IAIProvider {
 
     this.checkForNSFWContent(result as Record<string, unknown>);
 
-    options?.onProgress?.({ progress: 100, status: "COMPLETED" });
+    options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
     return result as T;
   }
 
