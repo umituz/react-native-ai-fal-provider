@@ -48,6 +48,15 @@ export {
   buildErrorMessage, isDefined, removeNullish, debounce, throttle,
 } from "./infrastructure/utils";
 
+export {
+  createJobMetadata, updateJobMetadata, isJobCompleted, isJobRunning,
+  isJobStale, getJobDuration, formatJobDuration, calculateJobProgress,
+  serializeJobMetadata, deserializeJobMetadata, filterValidJobs,
+  sortJobsByCreation, getActiveJobs, getCompletedJobs,
+} from "./infrastructure/utils";
+
+export type { FalJobMetadata } from "./infrastructure/utils";
+
 export type {
   UpscaleOptions, PhotoRestoreOptions, FaceSwapOptions, ImageToImagePromptConfig,
   RemoveBackgroundOptions, RemoveObjectOptions, ReplaceBackgroundOptions,

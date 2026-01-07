@@ -106,6 +106,7 @@ export class FalProvider implements IAIProvider {
     this.validateInitialization();
     const timeoutMs = options?.timeoutMs ?? this.config?.defaultTimeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let currentRequestId: string | null = null;
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.log("[FalProvider] Subscribe started:", { model, timeoutMs });
@@ -119,12 +120,16 @@ export class FalProvider implements IAIProvider {
           input,
           logs: false,
           pollInterval: DEFAULT_FAL_CONFIG.pollInterval,
-          onQueueUpdate: (update: { status: string; logs?: unknown[] }) => {
-            const jobStatus = mapFalStatusToJobStatus(update as unknown as FalQueueStatus);
+          onQueueUpdate: (update: { status: string; logs?: unknown[]; request_id?: string }) => {
+            currentRequestId = update.request_id ?? null;
+            const jobStatus = mapFalStatusToJobStatus({
+              ...update as unknown as FalQueueStatus,
+              requestId: currentRequestId ?? "",
+            });
             if (jobStatus.status !== lastStatus) {
               lastStatus = jobStatus.status;
               if (typeof __DEV__ !== "undefined" && __DEV__) {
-                console.log("[FalProvider] Status:", jobStatus.status);
+                console.log("[FalProvider] Status:", jobStatus.status, "RequestId:", currentRequestId);
               }
             }
             options?.onQueueUpdate?.(jobStatus);
@@ -136,7 +141,7 @@ export class FalProvider implements IAIProvider {
       ]);
 
       if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[FalProvider] Subscribe completed:", { model });
+        console.log("[FalProvider] Subscribe completed:", { model, requestId: currentRequestId });
       }
 
       validateNSFWContent(result as Record<string, unknown>);

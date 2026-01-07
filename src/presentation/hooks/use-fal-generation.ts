@@ -20,6 +20,7 @@ export interface UseFalGenerationResult<T> {
   error: FalErrorInfo | null;
   isLoading: boolean;
   isRetryable: boolean;
+  requestId: string | null;
   generate: (modelEndpoint: string, input: FalJobInput) => Promise<T | null>;
   retry: () => Promise<T | null>;
   reset: () => void;
@@ -33,6 +34,7 @@ export function useFalGeneration<T = unknown>(
   const [isLoading, setIsLoading] = useState(false);
 
   const lastRequestRef = useRef<{ endpoint: string; input: FalJobInput } | null>(null);
+  const currentRequestIdRef = useRef<string | null>(null);
 
   const generate = useCallback(
     async (modelEndpoint: string, input: FalJobInput): Promise<T | null> => {
@@ -40,15 +42,18 @@ export function useFalGeneration<T = unknown>(
       setIsLoading(true);
       setError(null);
       setData(null);
+      currentRequestIdRef.current = null;
 
       try {
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
           timeoutMs: options?.timeoutMs,
           onQueueUpdate: (status) => {
+            // Note: requestId is tracked internally by falProvider subscribe
+            // and exposed via the requestId ref, not from status object
             // Map JobStatus to FalQueueStatus for backward compatibility
             options?.onProgress?.({
               status: status.status,
-              requestId: "",
+              requestId: currentRequestIdRef.current ?? "",
               logs: status.logs?.map((log: FalLogEntry) => ({
                 message: log.message,
                 level: log.level,
@@ -84,6 +89,7 @@ export function useFalGeneration<T = unknown>(
     setError(null);
     setIsLoading(false);
     lastRequestRef.current = null;
+    currentRequestIdRef.current = null;
   }, []);
 
   return {
@@ -91,6 +97,7 @@ export function useFalGeneration<T = unknown>(
     error,
     isLoading,
     isRetryable: error ? isFalErrorRetryable(error.originalError) : false,
+    requestId: currentRequestIdRef.current,
     generate,
     retry,
     reset,
