@@ -20,20 +20,11 @@ import type {
 import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
-import { NSFWContentError } from "./nsfw-content-error";
 import { FAL_IMAGE_FEATURE_MODELS, FAL_VIDEO_FEATURE_MODELS } from "../../domain/constants/feature-models.constants";
-import {
-  buildSingleImageInput,
-  buildUpscaleInput,
-  buildPhotoRestoreInput,
-  buildFaceSwapInput,
-  buildRemoveBackgroundInput,
-  buildReplaceBackgroundInput,
-  buildKontextStyleTransferInput,
-  buildVideoFromImageInput,
-} from "../utils/input-builders.util";
+import { buildImageFeatureInput as buildImageFeatureInputImpl, buildVideoFeatureInput as buildVideoFeatureInputImpl } from "../builders";
+import { validateNSFWContent } from "../validators/nsfw-validator";
 
-declare const __DEV__: boolean;
+declare const __DEV__: boolean | undefined;
 
 export class FalProvider implements IAIProvider {
   readonly providerId = "fal";
@@ -180,18 +171,7 @@ export class FalProvider implements IAIProvider {
   }
 
   private checkForNSFWContent(result: Record<string, unknown>): void {
-    const nsfwConcepts = result?.has_nsfw_concepts as boolean[] | undefined;
-
-    if (nsfwConcepts && Array.isArray(nsfwConcepts)) {
-      const hasNSFW = nsfwConcepts.some((value) => value === true);
-
-      if (hasNSFW) {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log("[FalProvider] NSFW content detected, rejecting result");
-        }
-        throw new NSFWContentError();
-      }
-    }
+    validateNSFWContent(result);
   }
 
   reset(): void {
@@ -205,49 +185,7 @@ export class FalProvider implements IAIProvider {
   }
 
   buildImageFeatureInput(feature: ImageFeatureType, data: ImageFeatureInputData): Record<string, unknown> {
-    const { imageBase64, targetImageBase64, prompt, options } = data;
-
-    switch (feature) {
-      case "upscale":
-      case "hd-touch-up":
-        return buildUpscaleInput(imageBase64, options);
-
-      case "photo-restore":
-        return buildPhotoRestoreInput(imageBase64, options);
-
-      case "face-swap":
-        if (!targetImageBase64) throw new Error("Face swap requires target image");
-        return buildFaceSwapInput(imageBase64, targetImageBase64, options);
-
-      case "remove-background":
-        return buildRemoveBackgroundInput(imageBase64, options);
-
-      case "remove-object":
-        // Fooocus inpaint with "Modify Content" mode - no mask required
-        return {
-          inpaint_image_url: imageBase64.startsWith("data:")
-            ? imageBase64
-            : `data:image/jpeg;base64,${imageBase64}`,
-          prompt: prompt || (options?.prompt as string) ||
-            "Remove the object and fill with natural background",
-          inpaint_mode: "Modify Content (add objects, change background, etc.)",
-          guidance_scale: (options?.guidance_scale as number) ?? 4.0,
-        };
-
-      case "replace-background":
-        if (!prompt) throw new Error("Replace background requires prompt");
-        return buildReplaceBackgroundInput(imageBase64, { prompt, ...options });
-
-      case "anime-selfie":
-        return buildKontextStyleTransferInput(imageBase64, {
-          prompt: prompt || (options?.prompt as string) ||
-            "Transform this person into anime style illustration. Keep the same gender, face structure, hair color, eye color, and expression. Make it look like a high-quality anime character portrait with vibrant colors and clean lineart.",
-          guidance_scale: (options?.guidance_scale as number) ?? 4.0,
-        });
-
-      default:
-        return buildSingleImageInput(imageBase64, options);
-    }
+    return buildImageFeatureInputImpl(feature, data);
   }
 
   getVideoFeatureModel(feature: VideoFeatureType): string {
@@ -255,22 +193,7 @@ export class FalProvider implements IAIProvider {
   }
 
   buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
-    const { sourceImageBase64, targetImageBase64, prompt, options } = data;
-
-    // Vidu Q1 optimized prompts for reference-to-video with multiple people
-    const defaultPrompts: Record<VideoFeatureType, string> = {
-      "ai-kiss": "A romantic couple kissing tenderly, the two reference people sharing an intimate kiss moment, smooth natural movement, cinematic lighting, high quality video",
-      "ai-hug": "A heartwarming embrace between two people, the reference characters hugging warmly with genuine emotion, gentle natural movement, cinematic quality, touching moment",
-    };
-
-    const effectivePrompt = prompt || defaultPrompts[feature] || "Generate video with natural motion";
-
-    return buildVideoFromImageInput(sourceImageBase64, {
-      prompt: effectivePrompt,
-      target_image: targetImageBase64,
-      aspect_ratio: (options?.aspect_ratio as "16:9" | "9:16" | "1:1") || "9:16",
-      movement_amplitude: (options?.movement_amplitude as "auto" | "small" | "medium" | "large") || "medium",
-    });
+    return buildVideoFeatureInputImpl(feature, data);
   }
 }
 
