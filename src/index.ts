@@ -36,6 +36,18 @@ export {
   buildReplaceBackgroundInput, buildHDTouchUpInput,
 } from "./infrastructure/utils";
 
+export {
+  isFalModelType, isModelType, isFalErrorType,
+  isValidBase64Image, isValidApiKey, isValidModelId, isValidPrompt,
+  isValidTimeout, isValidRetryCount,
+} from "./infrastructure/utils";
+
+export {
+  formatImageDataUri, extractBase64, getDataUriExtension, isImageDataUri,
+  calculateTimeoutWithJitter, formatCreditCost, truncatePrompt, sanitizePrompt,
+  buildErrorMessage, isDefined, removeNullish, debounce, throttle,
+} from "./infrastructure/utils";
+
 export type {
   UpscaleOptions, PhotoRestoreOptions, FaceSwapOptions, ImageToImagePromptConfig,
   RemoveBackgroundOptions, RemoveObjectOptions, ReplaceBackgroundOptions,

@@ -6,21 +6,29 @@
 import type { JobStatus, AIJobStatusType } from "@umituz/react-native-ai-generation-content";
 import type { FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
 
-const STATUS_MAP: Record<string, AIJobStatusType> = {
-  IN_QUEUE: "IN_QUEUE",
-  IN_PROGRESS: "IN_PROGRESS",
-  COMPLETED: "COMPLETED",
-  FAILED: "FAILED",
-};
+const STATUS_MAP = {
+  IN_QUEUE: "IN_QUEUE" as const,
+  IN_PROGRESS: "IN_PROGRESS" as const,
+  COMPLETED: "COMPLETED" as const,
+  FAILED: "FAILED" as const,
+} as const satisfies Record<string, AIJobStatusType>;
 
+const DEFAULT_STATUS: AIJobStatusType = "IN_PROGRESS";
+
+/**
+ * Map FAL queue status to standardized job status
+ * Provides safe defaults for missing or invalid values
+ */
 export function mapFalStatusToJobStatus(status: FalQueueStatus): JobStatus {
+  const mappedStatus = STATUS_MAP[status.status] ?? DEFAULT_STATUS;
+
   return {
-    status: STATUS_MAP[status.status] ?? "IN_PROGRESS",
+    status: mappedStatus,
     logs: status.logs?.map((log: FalLogEntry) => ({
       message: log.message,
       level: log.level ?? "info",
-      timestamp: log.timestamp,
-    })),
-    queuePosition: status.queuePosition,
+      timestamp: log.timestamp ?? new Date().toISOString(),
+    })) ?? [],
+    queuePosition: status.queuePosition ?? undefined,
   };
 }
