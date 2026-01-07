@@ -4,6 +4,7 @@
  */
 
 import type { FalModelType } from "../entities/fal.types";
+import type { ModelType } from "../types/model-selection.types";
 
 export interface FalModelConfig {
   id: string;
@@ -131,19 +132,6 @@ export const DEFAULT_IMAGE_TO_VIDEO_MODELS: FalModelConfig[] = [
   },
 ];
 
-/**
- * Get all default models
- */
-export function getAllDefaultModels(): FalModelConfig[] {
-  return [
-    ...DEFAULT_TEXT_TO_IMAGE_MODELS,
-    ...DEFAULT_TEXT_TO_VOICE_MODELS,
-    ...DEFAULT_TEXT_TO_VIDEO_MODELS,
-    ...DEFAULT_IMAGE_TO_VIDEO_MODELS,
-    ...DEFAULT_TEXT_TO_TEXT_MODELS,
-  ];
-}
-
 export const DEFAULT_TEXT_TO_TEXT_MODELS: FalModelConfig[] = [
   {
     id: "fal-ai/llama-3-8b-instruct",
@@ -156,6 +144,19 @@ export const DEFAULT_TEXT_TO_TEXT_MODELS: FalModelConfig[] = [
     order: 1,
   },
 ];
+
+/**
+ * Get all default models
+ */
+export function getAllDefaultModels(): FalModelConfig[] {
+  return [
+    ...DEFAULT_TEXT_TO_IMAGE_MODELS,
+    ...DEFAULT_TEXT_TO_VOICE_MODELS,
+    ...DEFAULT_TEXT_TO_VIDEO_MODELS,
+    ...DEFAULT_IMAGE_TO_VIDEO_MODELS,
+    ...DEFAULT_TEXT_TO_TEXT_MODELS,
+  ];
+}
 
 /**
  * Get default models by type
@@ -193,3 +194,23 @@ export function getDefaultModel(type: FalModelType): FalModelConfig | undefined 
 export function findModelById(id: string): FalModelConfig | undefined {
   return getAllDefaultModels().find((m) => m.id === id);
 }
+
+/**
+ * Default credit costs for each model type
+ */
+export const DEFAULT_CREDIT_COSTS: Record<ModelType, number> = {
+  "text-to-image": 2,
+  "text-to-video": 20,
+  "image-to-video": 20,
+  "text-to-voice": 3,
+} as const;
+
+/**
+ * Default model IDs for each model type
+ */
+export const DEFAULT_MODEL_IDS: Record<ModelType, string> = {
+  "text-to-image": "fal-ai/flux/schnell",
+  "text-to-video": "fal-ai/minimax-video",
+  "image-to-video": "fal-ai/kling-video/v1.5/pro/image-to-video",
+  "text-to-voice": "fal-ai/playai/tts/v3",
+} as const;

@@ -139,7 +139,7 @@ export class FalProvider implements IAIProvider {
         console.log("[FalProvider] Subscribe completed:", { model });
       }
 
-      this.checkForNSFWContent(result as Record<string, unknown>);
+      validateNSFWContent(result as Record<string, unknown>);
 
       options?.onResult?.(result as T);
       return result as T;
@@ -164,14 +164,10 @@ export class FalProvider implements IAIProvider {
       console.log("[FalProvider] run() result keys:", result ? Object.keys(result as object) : "null");
     }
 
-    this.checkForNSFWContent(result as Record<string, unknown>);
+    validateNSFWContent(result as Record<string, unknown>);
 
     options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
     return result as T;
-  }
-
-  private checkForNSFWContent(result: Record<string, unknown>): void {
-    validateNSFWContent(result);
   }
 
   reset(): void {

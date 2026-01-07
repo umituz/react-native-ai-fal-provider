@@ -12,7 +12,7 @@ import { buildVideoFromImageInput } from "../utils/video-feature-builders.util";
 const DEFAULT_VIDEO_PROMPTS: Record<VideoFeatureType, string> = {
   "ai-kiss": "A romantic couple kissing tenderly, the two reference people sharing an intimate kiss moment, smooth natural movement, cinematic lighting, high quality video",
   "ai-hug": "A heartwarming embrace between two people, the reference characters hugging warmly with genuine emotion, gentle natural movement, cinematic quality, touching moment",
-};
+} as const;
 
 export function buildVideoFeatureInput(
   feature: VideoFeatureType,

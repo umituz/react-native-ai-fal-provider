@@ -11,7 +11,6 @@ import {
 } from "../../domain/constants/default-models.constants";
 
 export type { FalModelConfig };
-export type ModelFetcher = (type: FalModelType) => Promise<FalModelConfig[]>;
 
 function sortModels(models: FalModelConfig[]): FalModelConfig[] {
   return [...models].sort((a, b) => {
@@ -39,7 +38,7 @@ export function getModelPricing(modelId: string): { freeUserCost: number; premiu
   return model?.pricing ?? null;
 }
 
-// Singleton for backward compatibility
+// Singleton service export
 export const falModelsService = {
   getModels,
   getDefaultModel,
@@ -49,7 +48,4 @@ export const falModelsService = {
   getTextToVoiceModels: () => getModels("text-to-voice"),
   getTextToVideoModels: () => getModels("text-to-video"),
   getImageToVideoModels: () => getModels("image-to-video"),
-  clearCache: () => {},
-  setModelFetcher: (_fetcher: ModelFetcher) => {},
-  setCacheTtl: (_ttlMs: number) => {},
 };

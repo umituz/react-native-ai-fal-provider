@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { falModelsService } from "../../infrastructure/services/fal-models.service";
 import type { FalModelConfig } from "../../domain/constants/default-models.constants";
+import { DEFAULT_CREDIT_COSTS, DEFAULT_MODEL_IDS } from "../../domain/constants/default-models.constants";
 import type {
   ModelType,
   ModelSelectionConfig,
@@ -19,20 +20,6 @@ import type {
 } from "../../domain/types/model-selection.types";
 
 declare const __DEV__: boolean;
-
-const DEFAULT_CREDIT_COSTS: Record<ModelType, number> = {
-  "text-to-image": 2,
-  "text-to-video": 20,
-  "image-to-video": 20,
-  "text-to-voice": 3,
-};
-
-const DEFAULT_MODEL_IDS: Record<ModelType, string> = {
-  "text-to-image": "fal-ai/flux/schnell",
-  "text-to-video": "fal-ai/minimax-video",
-  "image-to-video": "fal-ai/kling-video/v1.5/pro/image-to-video",
-  "text-to-voice": "fal-ai/playai/tts/v3",
-};
 
 export interface UseModelsProps {
   /** Model type to fetch */

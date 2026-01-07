@@ -34,6 +34,4 @@ export const falErrorMapper = {
   mapToErrorInfo: mapFalError,
   isRetryable: isFalErrorRetryable,
   getErrorType: (error: unknown) => categorizeFalError(error).type,
-  setMessagePrefix: () => {},
-  setCustomMessages: () => {},
 };

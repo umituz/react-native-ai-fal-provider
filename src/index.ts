@@ -27,7 +27,6 @@ export {
   FalProvider, falProvider, falModelsService,
   getImageFeatureModel, getVideoFeatureModel, NSFWContentError,
 } from "./infrastructure/services";
-export type { ModelFetcher } from "./infrastructure/services";
 
 export {
   categorizeFalError, falErrorMapper, mapFalError, isFalErrorRetryable,
