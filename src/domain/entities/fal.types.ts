@@ -4,23 +4,23 @@
  */
 
 export interface FalConfig {
-  apiKey: string;
-  baseUrl?: string;
-  maxRetries?: number;
-  baseDelay?: number;
-  maxDelay?: number;
-  defaultTimeoutMs?: number;
+  readonly apiKey: string;
+  readonly baseUrl?: string;
+  readonly maxRetries?: number;
+  readonly baseDelay?: number;
+  readonly maxDelay?: number;
+  readonly defaultTimeoutMs?: number;
 }
 
 export interface FalModel {
-  id: string;
-  name: string;
-  description?: string;
-  endpoint: string;
-  type: FalModelType;
-  pricing?: FalModelPricing;
-  enabled: boolean;
-  order?: number;
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly endpoint: string;
+  readonly type: FalModelType;
+  readonly pricing?: FalModelPricing;
+  readonly enabled: boolean;
+  readonly order?: number;
 }
 
 export type FalModelType =
@@ -32,34 +32,34 @@ export type FalModelType =
   | "text-to-text";
 
 export interface FalModelPricing {
-  creditsPerGeneration: number;
-  currency?: string;
+  readonly creditsPerGeneration: number;
+  readonly currency?: string;
 }
 
 export interface FalJobInput {
-  [key: string]: unknown;
+  readonly [key: string]: unknown;
 }
 
 export interface FalJobResult<T = unknown> {
-  requestId: string;
-  data: T;
-  logs?: FalLogEntry[];
+  readonly requestId: string;
+  readonly data: T;
+  readonly logs?: readonly FalLogEntry[];
 }
 
 export interface FalLogEntry {
-  message: string;
-  timestamp?: string;
-  level?: "info" | "warn" | "error";
+  readonly message: string;
+  readonly timestamp?: string;
+  readonly level?: "info" | "warn" | "error";
 }
 
 export interface FalQueueStatus {
-  status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
-  requestId: string;
-  logs?: FalLogEntry[];
-  queuePosition?: number;
+  readonly status: "IN_QUEUE" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
+  readonly requestId: string;
+  readonly logs?: readonly FalLogEntry[];
+  readonly queuePosition?: number;
 }
 
 export interface FalSubscribeOptions {
-  onQueueUpdate?: (update: FalQueueStatus) => void;
-  timeoutMs?: number;
+  readonly onQueueUpdate?: (update: FalQueueStatus) => void;
+  readonly timeoutMs?: number;
 }

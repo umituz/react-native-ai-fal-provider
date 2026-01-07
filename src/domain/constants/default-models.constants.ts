@@ -7,17 +7,17 @@ import type { FalModelType } from "../entities/fal.types";
 import type { ModelType } from "../types/model-selection.types";
 
 export interface FalModelConfig {
-  id: string;
-  name: string;
-  type: FalModelType;
-  isDefault?: boolean;
-  isActive?: boolean;
-  pricing?: {
-    freeUserCost: number;
-    premiumUserCost: number;
+  readonly id: string;
+  readonly name: string;
+  readonly type: FalModelType;
+  readonly isDefault?: boolean;
+  readonly isActive?: boolean;
+  readonly pricing?: {
+    readonly freeUserCost: number;
+    readonly premiumUserCost: number;
   };
-  description?: string;
-  order?: number;
+  readonly description?: string;
+  readonly order?: number;
 }
 
 export const DEFAULT_TEXT_TO_IMAGE_MODELS: FalModelConfig[] = [

@@ -10,12 +10,12 @@ npm install @umituz/react-native-ai-fal-provider @fal-ai/client
 
 ## Usage
 
-### Initialize the Client
+### Initialize the Provider
 
 ```typescript
-import { falClientService } from "@umituz/react-native-ai-fal-provider";
+import { falProvider } from "@umituz/react-native-ai-fal-provider";
 
-falClientService.initialize({
+falProvider.initialize({
   apiKey: "YOUR_FAL_API_KEY",
   maxRetries: 3,
   defaultTimeoutMs: 300000,
@@ -47,12 +47,12 @@ function MyComponent() {
 }
 ```
 
-### Direct Service Usage
+### Direct Provider Usage
 
 ```typescript
-import { falClientService } from "@umituz/react-native-ai-fal-provider";
+import { falProvider } from "@umituz/react-native-ai-fal-provider";
 
-const result = await falClientService.subscribe("fal-ai/flux/dev", {
+const result = await falProvider.subscribe("fal-ai/flux/dev", {
   prompt: "A beautiful sunset",
 });
 ```
@@ -60,10 +60,10 @@ const result = await falClientService.subscribe("fal-ai/flux/dev", {
 ### Error Handling
 
 ```typescript
-import { mapFalError, isFalErrorRetryable } from "@umituz/react-native-ai-fal-provider";
+import { mapFalError, isFalErrorRetryable, falProvider } from "@umituz/react-native-ai-fal-provider";
 
 try {
-  await falClientService.run("fal-ai/flux/dev", { prompt: "test" });
+  await falProvider.run("fal-ai/flux/dev", { prompt: "test" });
 } catch (error) {
   const errorInfo = mapFalError(error);
   console.log("Error type:", errorInfo.type);
@@ -74,16 +74,18 @@ try {
 
 ## API
 
-### falClientService
+### falProvider
 
-- `initialize(config)` - Initialize the client with API key
-- `subscribe(endpoint, input, options)` - Subscribe to generation job
-- `run(endpoint, input)` - Run a generation job
-- `submitJob(endpoint, input)` - Submit a job to queue
-- `getJobStatus(endpoint, requestId)` - Get job status
-- `getJobResult(endpoint, requestId)` - Get job result
-- `isInitialized()` - Check if client is initialized
-- `reset()` - Reset the client
+- `initialize(config)` - Initialize the provider with API key
+- `subscribe(model, input, options)` - Subscribe to generation job
+- `run(model, input, options)` - Run a generation job
+- `submitJob(model, input)` - Submit a job to queue
+- `getJobStatus(model, requestId)` - Get job status
+- `getJobResult(model, requestId)` - Get job result
+- `isInitialized()` - Check if provider is initialized
+- `reset()` - Reset the provider
+- `getCapabilities()` - Get provider capabilities
+- `isFeatureSupported(feature)` - Check if feature is supported
 
 ### useFalGeneration Hook
 

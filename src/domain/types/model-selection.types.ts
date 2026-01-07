@@ -11,6 +11,9 @@ export type ModelType =
   | "image-to-video"
   | "text-to-voice";
 
+/**
+ * Configuration for model selection behavior
+ */
 export interface ModelSelectionConfig {
   /** Initial model ID to select */
   readonly initialModelId?: string;
@@ -20,6 +23,9 @@ export interface ModelSelectionConfig {
   readonly defaultModelId?: string;
 }
 
+/**
+ * Model selection state
+ */
 export interface ModelSelectionState {
   /** All available models for the type */
   readonly models: FalModelConfig[];
@@ -35,6 +41,9 @@ export interface ModelSelectionState {
   readonly error: string | null;
 }
 
+/**
+ * Model selection actions
+ */
 export interface ModelSelectionActions {
   /** Select a model by ID */
   readonly selectModel: (modelId: string) => void;
@@ -42,4 +51,7 @@ export interface ModelSelectionActions {
   readonly refreshModels: () => void;
 }
 
+/**
+ * Complete return type for useModels hook
+ */
 export type UseModelsReturn = ModelSelectionState & ModelSelectionActions;

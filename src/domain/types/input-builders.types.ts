@@ -3,20 +3,20 @@
  */
 
 export interface UpscaleOptions {
-  scaleFactor?: number;
-  enhanceFaces?: boolean;
+  readonly scaleFactor?: number;
+  readonly enhanceFaces?: boolean;
 }
 
 export interface PhotoRestoreOptions {
-  enhanceFaces?: boolean;
+  readonly enhanceFaces?: boolean;
 }
 
 export interface ImageToImagePromptConfig {
-  prompt: string;
-  negativePrompt: string;
-  strength?: number;
-  guidance_scale?: number;
-  num_inference_steps?: number;
+  readonly prompt: string;
+  readonly negativePrompt: string;
+  readonly strength?: number;
+  readonly guidance_scale?: number;
+  readonly num_inference_steps?: number;
 }
 
 export interface RemoveBackgroundOptions {
@@ -24,24 +24,24 @@ export interface RemoveBackgroundOptions {
 }
 
 export interface RemoveObjectOptions {
-  mask?: string;
-  prompt?: string;
+  readonly mask?: string;
+  readonly prompt?: string;
 }
 
 export interface ReplaceBackgroundOptions {
-  prompt: string;
+  readonly prompt: string;
 }
 
 export interface VideoFromImageOptions {
-  target_image?: string;
-  prompt?: string;
+  readonly target_image?: string;
+  readonly prompt?: string;
   /** @deprecated Use prompt instead */
-  motion_prompt?: string;
-  duration?: number;
+  readonly motion_prompt?: string;
+  readonly duration?: number;
   /** Vidu Q1: Video aspect ratio - "16:9", "9:16", or "1:1" */
-  aspect_ratio?: "16:9" | "9:16" | "1:1";
+  readonly aspect_ratio?: "16:9" | "9:16" | "1:1";
   /** Vidu Q1: Movement intensity - "auto", "small", "medium", or "large" */
-  movement_amplitude?: "auto" | "small" | "medium" | "large";
+  readonly movement_amplitude?: "auto" | "small" | "medium" | "large";
 }
 
 export interface FaceSwapOptions {

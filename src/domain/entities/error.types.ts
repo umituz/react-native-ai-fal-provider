@@ -17,17 +17,17 @@ export enum FalErrorType {
 }
 
 export interface FalErrorCategory {
-  type: FalErrorType;
-  messageKey: string;
-  retryable: boolean;
+  readonly type: FalErrorType;
+  readonly messageKey: string;
+  readonly retryable: boolean;
 }
 
 export interface FalErrorInfo {
-  type: FalErrorType;
-  messageKey: string;
-  retryable: boolean;
-  originalError: string;
-  statusCode?: number;
+  readonly type: FalErrorType;
+  readonly messageKey: string;
+  readonly retryable: boolean;
+  readonly originalError: string;
+  readonly statusCode?: number;
 }
 
 export interface FalErrorMessages {
