@@ -5,6 +5,18 @@
 
 import type { FalModelType } from "../entities/fal.types";
 import type { ModelType } from "../types/model-selection.types";
+import { DEFAULT_TEXT_TO_IMAGE_MODELS } from "./models/text-to-image.models";
+import { DEFAULT_TEXT_TO_VOICE_MODELS } from "./models/text-to-voice.models";
+import { DEFAULT_TEXT_TO_VIDEO_MODELS } from "./models/text-to-video.models";
+import { DEFAULT_IMAGE_TO_VIDEO_MODELS } from "./models/image-to-video.models";
+import { DEFAULT_TEXT_TO_TEXT_MODELS } from "./models/text-to-text.models";
+
+// Export model lists
+export { DEFAULT_TEXT_TO_IMAGE_MODELS };
+export { DEFAULT_TEXT_TO_VOICE_MODELS };
+export { DEFAULT_TEXT_TO_VIDEO_MODELS };
+export { DEFAULT_IMAGE_TO_VIDEO_MODELS };
+export { DEFAULT_TEXT_TO_TEXT_MODELS };
 
 export interface FalModelConfig {
   readonly id: string;
@@ -20,130 +32,25 @@ export interface FalModelConfig {
   readonly order?: number;
 }
 
-export const DEFAULT_TEXT_TO_IMAGE_MODELS: FalModelConfig[] = [
-  {
-    id: "fal-ai/flux/schnell",
-    name: "Flux Schnell",
-    type: "text-to-image",
-    isDefault: true,
-    isActive: true,
-    pricing: { freeUserCost: 1, premiumUserCost: 0.5 },
-    description: "Fast and efficient text-to-image generation",
-    order: 1,
-  },
-  {
-    id: "fal-ai/flux/dev",
-    name: "Flux Dev",
-    type: "text-to-image",
-    isDefault: false,
-    isActive: true,
-    pricing: { freeUserCost: 2, premiumUserCost: 1 },
-    description: "High-quality text-to-image generation",
-    order: 2,
-  },
-  {
-    id: "fal-ai/flux-pro",
-    name: "Flux Pro",
-    type: "text-to-image",
-    isDefault: false,
-    isActive: true,
-    pricing: { freeUserCost: 3, premiumUserCost: 1.5 },
-    description: "Professional-grade text-to-image generation",
-    order: 3,
-  },
-];
+/**
+ * Default credit costs for each model type
+ */
+export const DEFAULT_CREDIT_COSTS: Record<ModelType, number> = {
+  "text-to-image": 2,
+  "text-to-video": 20,
+  "image-to-video": 20,
+  "text-to-voice": 3,
+} as const;
 
-export const DEFAULT_TEXT_TO_VOICE_MODELS: FalModelConfig[] = [
-  {
-    id: "fal-ai/playai/tts/v3",
-    name: "PlayAI TTS v3",
-    type: "text-to-voice",
-    isDefault: true,
-    isActive: true,
-    pricing: { freeUserCost: 1, premiumUserCost: 0.5 },
-    description: "High-quality text-to-speech synthesis",
-    order: 1,
-  },
-  {
-    id: "fal-ai/eleven-labs/tts",
-    name: "ElevenLabs TTS",
-    type: "text-to-voice",
-    isDefault: false,
-    isActive: true,
-    pricing: { freeUserCost: 2, premiumUserCost: 1 },
-    description: "Premium voice synthesis with multiple voice options",
-    order: 2,
-  },
-];
-
-export const DEFAULT_TEXT_TO_VIDEO_MODELS: FalModelConfig[] = [
-  {
-    id: "fal-ai/hunyuan-video/1",
-    name: "Hunyuan",
-    type: "text-to-video",
-    isDefault: true,
-    isActive: true,
-    pricing: { freeUserCost: 10, premiumUserCost: 5 },
-    description: "High-quality video generation",
-    order: 1,
-  },
-  {
-    id: "fal-ai/minimax-video",
-    name: "MiniMax",
-    type: "text-to-video",
-    isDefault: false,
-    isActive: true,
-    pricing: { freeUserCost: 15, premiumUserCost: 8 },
-    description: "Advanced video generation with better dynamics",
-    order: 2,
-  },
-  {
-    id: "fal-ai/kling-video/v1.5/pro/text-to-video",
-    name: "Kling 1.5",
-    type: "text-to-video",
-    isDefault: false,
-    isActive: true,
-    pricing: { freeUserCost: 20, premiumUserCost: 10 },
-    description: "Professional video generation",
-    order: 3,
-  },
-  {
-    id: "fal-ai/mochi-v1",
-    name: "Mochi",
-    type: "text-to-video",
-    isDefault: false,
-    isActive: true,
-    pricing: { freeUserCost: 8, premiumUserCost: 4 },
-    description: "Fast video generation",
-    order: 4,
-  },
-];
-
-export const DEFAULT_IMAGE_TO_VIDEO_MODELS: FalModelConfig[] = [
-  {
-    id: "fal-ai/kling-video/v1.5/pro/image-to-video",
-    name: "Kling I2V",
-    type: "image-to-video",
-    isDefault: true,
-    isActive: true,
-    pricing: { freeUserCost: 15, premiumUserCost: 8 },
-    description: "High-quality image to video generation",
-    order: 1,
-  },
-];
-
-export const DEFAULT_TEXT_TO_TEXT_MODELS: FalModelConfig[] = [
-  {
-    id: "fal-ai/llama-3-8b-instruct",
-    name: "Llama 3 8B Instruct",
-    type: "text-to-text",
-    isDefault: true,
-    isActive: true,
-    pricing: { freeUserCost: 0.1, premiumUserCost: 0.05 },
-    description: "Fast and reliable text generation",
-    order: 1,
-  },
-];
+/**
+ * Default model IDs for each model type
+ */
+export const DEFAULT_MODEL_IDS: Record<ModelType, string> = {
+  "text-to-image": "fal-ai/flux/schnell",
+  "text-to-video": "fal-ai/minimax-video",
+  "image-to-video": "fal-ai/kling-video/v1.5/pro/image-to-video",
+  "text-to-voice": "fal-ai/playai/tts/v3",
+} as const;
 
 /**
  * Get all default models
@@ -194,23 +101,3 @@ export function getDefaultModel(type: FalModelType): FalModelConfig | undefined 
 export function findModelById(id: string): FalModelConfig | undefined {
   return getAllDefaultModels().find((m) => m.id === id);
 }
-
-/**
- * Default credit costs for each model type
- */
-export const DEFAULT_CREDIT_COSTS: Record<ModelType, number> = {
-  "text-to-image": 2,
-  "text-to-video": 20,
-  "image-to-video": 20,
-  "text-to-voice": 3,
-} as const;
-
-/**
- * Default model IDs for each model type
- */
-export const DEFAULT_MODEL_IDS: Record<ModelType, string> = {
-  "text-to-image": "fal-ai/flux/schnell",
-  "text-to-video": "fal-ai/minimax-video",
-  "image-to-video": "fal-ai/kling-video/v1.5/pro/image-to-video",
-  "text-to-voice": "fal-ai/playai/tts/v3",
-} as const;

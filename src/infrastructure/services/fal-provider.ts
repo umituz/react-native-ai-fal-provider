@@ -22,7 +22,7 @@ import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { FAL_IMAGE_FEATURE_MODELS, FAL_VIDEO_FEATURE_MODELS } from "../../domain/constants/feature-models.constants";
 import { buildImageFeatureInput as buildImageFeatureInputImpl, buildVideoFeatureInput as buildVideoFeatureInputImpl } from "../builders";
-import { validateNSFWContent } from "../validators/nsfw-validator";
+import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
 
 declare const __DEV__: boolean | undefined;
 
@@ -31,13 +31,11 @@ export class FalProvider implements IAIProvider {
   readonly providerName = "FAL AI";
 
   private apiKey: string | null = null;
-  private config: AIProviderConfig | null = null;
   private initialized = false;
   private currentAbortController: AbortController | null = null;
 
   initialize(configData: AIProviderConfig): void {
     this.apiKey = configData.apiKey;
-    this.config = { ...DEFAULT_FAL_CONFIG, ...configData };
 
     fal.config({
       credentials: configData.apiKey,
@@ -105,104 +103,24 @@ export class FalProvider implements IAIProvider {
     options?: SubscribeOptions<T>,
   ): Promise<T> {
     this.validateInitialization();
-
-    // Cancel previous request if exists
     this.cancelCurrentRequest();
-
-    // Create new abort controller
     this.currentAbortController = new AbortController();
-    const { signal } = this.currentAbortController;
 
-    const timeoutMs = options?.timeoutMs ?? this.config?.defaultTimeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let currentRequestId: string | null = null;
-
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] Subscribe started:", { model, timeoutMs });
-    }
-
-    let lastStatus = "";
-
-    try {
-      const result = await Promise.race([
-        fal.subscribe(model, {
-          input,
-          logs: false,
-          pollInterval: DEFAULT_FAL_CONFIG.pollInterval,
-          onQueueUpdate: (update: { status: string; logs?: unknown[]; request_id?: string }) => {
-            currentRequestId = update.request_id ?? null;
-            const jobStatus = mapFalStatusToJobStatus({
-              ...update as unknown as FalQueueStatus,
-              requestId: currentRequestId ?? "",
-            });
-            if (jobStatus.status !== lastStatus) {
-              lastStatus = jobStatus.status;
-              if (typeof __DEV__ !== "undefined" && __DEV__) {
-                console.log("[FalProvider] Status:", jobStatus.status, "RequestId:", currentRequestId);
-              }
-            }
-            options?.onQueueUpdate?.(jobStatus);
-          },
-        }),
-        new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => {
-            reject(new Error("FAL subscription timeout"));
-          }, timeoutMs);
-        }),
-        // Abort promise
-        new Promise<never>((_, reject) => {
-          signal.addEventListener("abort", () => {
-            reject(new Error("Request cancelled by user"));
-          });
-        }),
-      ]);
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[FalProvider] Subscribe completed:", { model, requestId: currentRequestId });
-      }
-
-      validateNSFWContent(result as Record<string, unknown>);
-
-      options?.onResult?.(result as T);
-      return result as T;
-    } finally {
-      if (timeoutId) clearTimeout(timeoutId);
-      this.currentAbortController = null;
-    }
+    const { result } = await handleFalSubscription<T>(model, input, options, this.currentAbortController.signal);
+    return result;
   }
 
   async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
     this.validateInitialization();
-    options?.onProgress?.({ progress: 10, status: "IN_PROGRESS" as const });
-
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] run() model:", model, "inputKeys:", Object.keys(input));
-    }
-
-    const result = await fal.run(model, { input });
-
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] run() raw result:", JSON.stringify(result, null, 2));
-      console.log("[FalProvider] run() result type:", typeof result);
-      console.log("[FalProvider] run() result keys:", result ? Object.keys(result as object) : "null");
-    }
-
-    validateNSFWContent(result as Record<string, unknown>);
-
-    options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
-    return result as T;
+    return handleFalRun<T>(model, input, options);
   }
 
   reset(): void {
     this.cancelCurrentRequest();
     this.apiKey = null;
-    this.config = null;
     this.initialized = false;
   }
 
-  /**
-   * Cancel the current running request
-   */
   cancelCurrentRequest(): void {
     if (this.currentAbortController) {
       if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -213,9 +131,6 @@ export class FalProvider implements IAIProvider {
     }
   }
 
-  /**
-   * Check if there's a running request
-   */
   hasRunningRequest(): boolean {
     return this.currentAbortController !== null;
   }
