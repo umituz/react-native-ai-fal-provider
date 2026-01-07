@@ -62,9 +62,9 @@ export {
   sortJobsByCreation,
   getActiveJobs,
   getCompletedJobs,
-} from "./job-metadata.util";
+} from "./job-metadata";
 
-export type { FalJobMetadata } from "./job-metadata.util";
+export type { FalJobMetadata } from "./job-metadata";
 
 export {
   saveJobMetadata,
@@ -75,6 +75,6 @@ export {
   getJobsByModel,
   getJobsByStatus,
   updateJobStatus,
-} from "./job-storage.util";
+} from "./job-storage";
 
-export type { IJobStorage, InMemoryJobStorage } from "./job-storage.util";
+export type { IJobStorage, InMemoryJobStorage } from "./job-storage";
