@@ -21,8 +21,10 @@ export interface UseFalGenerationResult<T> {
   isLoading: boolean;
   isRetryable: boolean;
   requestId: string | null;
+  isCancelling: boolean;
   generate: (modelEndpoint: string, input: FalJobInput) => Promise<T | null>;
   retry: () => Promise<T | null>;
+  cancel: () => void;
   reset: () => void;
 }
 
@@ -32,9 +34,11 @@ export function useFalGeneration<T = unknown>(
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<FalErrorInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const lastRequestRef = useRef<{ endpoint: string; input: FalJobInput } | null>(null);
   const currentRequestIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const generate = useCallback(
     async (modelEndpoint: string, input: FalJobInput): Promise<T | null> => {
@@ -43,6 +47,10 @@ export function useFalGeneration<T = unknown>(
       setError(null);
       setData(null);
       currentRequestIdRef.current = null;
+      setIsCancelling(false);
+
+      // Create abort controller for this request
+      abortControllerRef.current = new AbortController();
 
       try {
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
@@ -50,10 +58,11 @@ export function useFalGeneration<T = unknown>(
           onQueueUpdate: (status) => {
             // Note: requestId is tracked internally by falProvider subscribe
             // and exposed via the requestId ref, not from status object
+            const currentRequestId = currentRequestIdRef.current ?? "";
             // Map JobStatus to FalQueueStatus for backward compatibility
             options?.onProgress?.({
               status: status.status,
-              requestId: currentRequestIdRef.current ?? "",
+              requestId: currentRequestId,
               logs: status.logs?.map((log: FalLogEntry) => ({
                 message: log.message,
                 level: log.level,
@@ -73,6 +82,8 @@ export function useFalGeneration<T = unknown>(
         return null;
       } finally {
         setIsLoading(false);
+        setIsCancelling(false);
+        abortControllerRef.current = null;
       }
     },
     [options]
@@ -84,13 +95,25 @@ export function useFalGeneration<T = unknown>(
     return generate(endpoint, input);
   }, [generate]);
 
+  const cancel = useCallback(() => {
+    if (abortControllerRef.current) {
+      setIsCancelling(true);
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[useFalGeneration] Request cancelled");
+      }
+    }
+  }, []);
+
   const reset = useCallback(() => {
+    cancel();
     setData(null);
     setError(null);
     setIsLoading(false);
     lastRequestRef.current = null;
     currentRequestIdRef.current = null;
-  }, []);
+  }, [cancel]);
 
   return {
     data,
@@ -98,8 +121,10 @@ export function useFalGeneration<T = unknown>(
     isLoading,
     isRetryable: error ? isFalErrorRetryable(error.originalError) : false,
     requestId: currentRequestIdRef.current,
+    isCancelling,
     generate,
     retry,
+    cancel,
     reset,
   };
 }

@@ -33,6 +33,7 @@ export class FalProvider implements IAIProvider {
   private apiKey: string | null = null;
   private config: AIProviderConfig | null = null;
   private initialized = false;
+  private currentAbortController: AbortController | null = null;
 
   initialize(configData: AIProviderConfig): void {
     this.apiKey = configData.apiKey;
@@ -104,6 +105,14 @@ export class FalProvider implements IAIProvider {
     options?: SubscribeOptions<T>,
   ): Promise<T> {
     this.validateInitialization();
+
+    // Cancel previous request if exists
+    this.cancelCurrentRequest();
+
+    // Create new abort controller
+    this.currentAbortController = new AbortController();
+    const { signal } = this.currentAbortController;
+
     const timeoutMs = options?.timeoutMs ?? this.config?.defaultTimeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let currentRequestId: string | null = null;
@@ -136,7 +145,15 @@ export class FalProvider implements IAIProvider {
           },
         }),
         new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error("FAL subscription timeout")), timeoutMs);
+          timeoutId = setTimeout(() => {
+            reject(new Error("FAL subscription timeout"));
+          }, timeoutMs);
+        }),
+        // Abort promise
+        new Promise<never>((_, reject) => {
+          signal.addEventListener("abort", () => {
+            reject(new Error("Request cancelled by user"));
+          });
         }),
       ]);
 
@@ -150,6 +167,7 @@ export class FalProvider implements IAIProvider {
       return result as T;
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
+      this.currentAbortController = null;
     }
   }
 
@@ -176,9 +194,30 @@ export class FalProvider implements IAIProvider {
   }
 
   reset(): void {
+    this.cancelCurrentRequest();
     this.apiKey = null;
     this.config = null;
     this.initialized = false;
+  }
+
+  /**
+   * Cancel the current running request
+   */
+  cancelCurrentRequest(): void {
+    if (this.currentAbortController) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[FalProvider] Cancelling current request");
+      }
+      this.currentAbortController.abort();
+      this.currentAbortController = null;
+    }
+  }
+
+  /**
+   * Check if there's a running request
+   */
+  hasRunningRequest(): boolean {
+    return this.currentAbortController !== null;
   }
 
   getImageFeatureModel(feature: ImageFeatureType): string {

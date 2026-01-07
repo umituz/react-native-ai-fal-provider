@@ -26,7 +26,9 @@ export type { FeatureModelConfig } from "./domain/constants/feature-models.const
 export {
   FalProvider, falProvider, falModelsService,
   getImageFeatureModel, getVideoFeatureModel, NSFWContentError,
+  cancelCurrentFalRequest, hasRunningFalRequest,
 } from "./infrastructure/services";
+export type { FalProviderType } from "./infrastructure/services";
 
 export {
   categorizeFalError, falErrorMapper, mapFalError, isFalErrorRetryable,
@@ -55,7 +57,12 @@ export {
   sortJobsByCreation, getActiveJobs, getCompletedJobs,
 } from "./infrastructure/utils";
 
-export type { FalJobMetadata } from "./infrastructure/utils";
+export {
+  saveJobMetadata, loadJobMetadata, deleteJobMetadata, loadAllJobs,
+  cleanupOldJobs, getJobsByModel, getJobsByStatus, updateJobStatus,
+} from "./infrastructure/utils";
+
+export type { FalJobMetadata, IJobStorage, InMemoryJobStorage } from "./infrastructure/utils";
 
 export type {
   UpscaleOptions, PhotoRestoreOptions, FaceSwapOptions, ImageToImagePromptConfig,
