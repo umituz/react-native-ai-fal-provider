@@ -18,11 +18,22 @@ import type {
   ProviderCapabilities,
 } from "@umituz/react-native-ai-generation-content";
 import type { FalQueueStatus } from "../../domain/entities/fal.types";
+import type { CostTrackerConfig } from "../../domain/entities/cost-tracking.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
-import { FAL_IMAGE_FEATURE_MODELS, FAL_VIDEO_FEATURE_MODELS } from "../../domain/constants/feature-models.constants";
-import { buildImageFeatureInput as buildImageFeatureInputImpl, buildVideoFeatureInput as buildVideoFeatureInputImpl } from "../builders";
-import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
+import {
+  FAL_IMAGE_FEATURE_MODELS,
+  FAL_VIDEO_FEATURE_MODELS,
+} from "../../domain/constants/feature-models.constants";
+import {
+  buildImageFeatureInput as buildImageFeatureInputImpl,
+  buildVideoFeatureInput as buildVideoFeatureInputImpl,
+} from "../builders";
+import {
+  handleFalSubscription,
+  handleFalRun,
+} from "./fal-provider-subscription";
+import { CostTracker } from "../utils/cost-tracker";
 
 declare const __DEV__: boolean | undefined;
 
@@ -33,6 +44,7 @@ export class FalProvider implements IAIProvider {
   private apiKey: string | null = null;
   private initialized = false;
   private currentAbortController: AbortController | null = null;
+  private costTracker: CostTracker | null = null;
 
   initialize(configData: AIProviderConfig): void {
     this.apiKey = configData.apiKey;
@@ -51,6 +63,40 @@ export class FalProvider implements IAIProvider {
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.log("[FalProvider] Initialized");
     }
+  }
+
+  /**
+   * Enable cost tracking
+   */
+  enableCostTracking(config?: CostTrackerConfig): void {
+    this.costTracker = new CostTracker(config);
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[FalProvider] Cost tracking enabled");
+    }
+  }
+
+  /**
+   * Disable cost tracking
+   */
+  disableCostTracking(): void {
+    this.costTracker = null;
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[FalProvider] Cost tracking disabled");
+    }
+  }
+
+  /**
+   * Check if cost tracking is enabled
+   */
+  isCostTrackingEnabled(): boolean {
+    return this.costTracker !== null;
+  }
+
+  /**
+   * Get cost tracker instance
+   */
+  getCostTracker(): CostTracker | null {
+    return this.costTracker;
   }
 
   isInitialized(): boolean {
@@ -75,7 +121,10 @@ export class FalProvider implements IAIProvider {
     }
   }
 
-  async submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
+  async submitJob(
+    model: string,
+    input: Record<string, unknown>,
+  ): Promise<JobSubmission> {
     this.validateInitialization();
     const result = await fal.queue.submit(model, { input });
     return {
@@ -91,7 +140,10 @@ export class FalProvider implements IAIProvider {
     return mapFalStatusToJobStatus(status as unknown as FalQueueStatus);
   }
 
-  async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
+  async getJobResult<T = unknown>(
+    model: string,
+    requestId: string,
+  ): Promise<T> {
     this.validateInitialization();
     const result = await fal.queue.result(model, { requestId });
     return result.data as T;
@@ -106,13 +158,43 @@ export class FalProvider implements IAIProvider {
     this.cancelCurrentRequest();
     this.currentAbortController = new AbortController();
 
-    const { result } = await handleFalSubscription<T>(model, input, options, this.currentAbortController.signal);
+    const operationId = this.costTracker?.startOperation(model, "subscribe");
+
+    const { result, requestId } = await handleFalSubscription<T>(
+      model,
+      input,
+      options,
+      this.currentAbortController.signal,
+    );
+
+    if (operationId && this.costTracker) {
+      this.costTracker.completeOperation(
+        operationId,
+        model,
+        "subscribe",
+        requestId ?? undefined,
+      );
+    }
+
     return result;
   }
 
-  async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
+  async run<T = unknown>(
+    model: string,
+    input: Record<string, unknown>,
+    options?: RunOptions,
+  ): Promise<T> {
     this.validateInitialization();
-    return handleFalRun<T>(model, input, options);
+
+    const operationId = this.costTracker?.startOperation(model, "run");
+
+    const result = await handleFalRun<T>(model, input, options);
+
+    if (operationId && this.costTracker) {
+      this.costTracker.completeOperation(operationId, model, "run");
+    }
+
+    return result;
   }
 
   reset(): void {
@@ -139,7 +221,10 @@ export class FalProvider implements IAIProvider {
     return FAL_IMAGE_FEATURE_MODELS[feature];
   }
 
-  buildImageFeatureInput(feature: ImageFeatureType, data: ImageFeatureInputData): Record<string, unknown> {
+  buildImageFeatureInput(
+    feature: ImageFeatureType,
+    data: ImageFeatureInputData,
+  ): Record<string, unknown> {
     return buildImageFeatureInputImpl(feature, data);
   }
 
@@ -147,7 +232,10 @@ export class FalProvider implements IAIProvider {
     return FAL_VIDEO_FEATURE_MODELS[feature];
   }
 
-  buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
+  buildVideoFeatureInput(
+    feature: VideoFeatureType,
+    data: VideoFeatureInputData,
+  ): Record<string, unknown> {
     return buildVideoFeatureInputImpl(feature, data);
   }
 }

@@ -3,7 +3,11 @@
  */
 
 export { categorizeFalError } from "./error-categorizer";
-export { falErrorMapper, mapFalError, isFalErrorRetryable } from "./error-mapper";
+export {
+  falErrorMapper,
+  mapFalError,
+  isFalErrorRetryable,
+} from "./error-mapper";
 
 export {
   buildSingleImageInput,
@@ -78,3 +82,5 @@ export {
 } from "./job-storage";
 
 export type { IJobStorage, InMemoryJobStorage } from "./job-storage";
+
+export { CostTracker } from "./cost-tracker";
