@@ -22,10 +22,6 @@ import type { CostTrackerConfig } from "../../domain/entities/cost-tracking.type
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import {
-  FAL_IMAGE_FEATURE_MODELS,
-  FAL_VIDEO_FEATURE_MODELS,
-} from "../../domain/constants/feature-models.constants";
-import {
   buildImageFeatureInput as buildImageFeatureInputImpl,
   buildVideoFeatureInput as buildVideoFeatureInputImpl,
 } from "../builders";
@@ -45,9 +41,13 @@ export class FalProvider implements IAIProvider {
   private initialized = false;
   private currentAbortController: AbortController | null = null;
   private costTracker: CostTracker | null = null;
+  private videoFeatureModels: Record<string, string> = {};
+  private imageFeatureModels: Record<string, string> = {};
 
   initialize(configData: AIProviderConfig): void {
     this.apiKey = configData.apiKey;
+    this.videoFeatureModels = configData.videoFeatureModels ?? {};
+    this.imageFeatureModels = configData.imageFeatureModels ?? {};
 
     fal.config({
       credentials: configData.apiKey,
@@ -218,7 +218,11 @@ export class FalProvider implements IAIProvider {
   }
 
   getImageFeatureModel(feature: ImageFeatureType): string {
-    return FAL_IMAGE_FEATURE_MODELS[feature];
+    const model = this.imageFeatureModels[feature];
+    if (!model) {
+      throw new Error(`No model configured for image feature: ${feature}`);
+    }
+    return model;
   }
 
   buildImageFeatureInput(
@@ -229,7 +233,11 @@ export class FalProvider implements IAIProvider {
   }
 
   getVideoFeatureModel(feature: VideoFeatureType): string {
-    return FAL_VIDEO_FEATURE_MODELS[feature];
+    const model = this.videoFeatureModels[feature];
+    if (!model) {
+      throw new Error(`No model configured for video feature: ${feature}`);
+    }
+    return model;
   }
 
   buildVideoFeatureInput(

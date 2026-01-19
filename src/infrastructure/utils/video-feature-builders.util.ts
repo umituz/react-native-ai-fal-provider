@@ -29,15 +29,10 @@ export function buildVideoFromImageInput(
   const formatImage = (b64: string) =>
     b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
 
-  const referenceImages: string[] = [formatImage(base64)];
-  if (options?.target_image) {
-    referenceImages.push(formatImage(options.target_image));
-  }
-
   return {
     prompt: options?.prompt || options?.motion_prompt || "Generate natural motion video",
-    reference_image_urls: referenceImages,
-    aspect_ratio: options?.aspect_ratio || "9:16",
-    movement_amplitude: options?.movement_amplitude || "auto",
+    image_url: formatImage(base64),
+    duration: options?.duration || 5,
+    resolution: options?.resolution || "720p",
   };
 }

@@ -41,19 +41,12 @@ export {
 } from "./domain/constants/default-models.constants";
 export type { FalModelConfig } from "./domain/constants/default-models.constants";
 
-export {
-  FAL_IMAGE_FEATURE_MODELS,
-  FAL_VIDEO_FEATURE_MODELS,
-  getAllFeatureModels,
-} from "./domain/constants/feature-models.constants";
-export type { FeatureModelConfig } from "./domain/constants/feature-models.constants";
+export { FAL_IMAGE_FEATURE_MODELS } from "./domain/constants/feature-models.constants";
 
 export {
   FalProvider,
   falProvider,
   falModelsService,
-  getImageFeatureModel,
-  getVideoFeatureModel,
   NSFWContentError,
   cancelCurrentFalRequest,
   hasRunningFalRequest,
@@ -164,3 +157,9 @@ export type {
   UseFalGenerationResult,
   UseModelsProps,
 } from "./presentation/hooks";
+
+// Init Module Factory
+export {
+  createAiProviderInitModule,
+  type AiProviderInitModuleConfig,
+} from './init';

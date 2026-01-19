@@ -33,15 +33,13 @@ export interface ReplaceBackgroundOptions {
 }
 
 export interface VideoFromImageOptions {
-  readonly target_image?: string;
   readonly prompt?: string;
   /** @deprecated Use prompt instead */
   readonly motion_prompt?: string;
-  readonly duration?: number;
-  /** Vidu Q1: Video aspect ratio - "16:9", "9:16", or "1:1" */
-  readonly aspect_ratio?: "16:9" | "9:16" | "1:1";
-  /** Vidu Q1: Movement intensity - "auto", "small", "medium", or "large" */
-  readonly movement_amplitude?: "auto" | "small" | "medium" | "large";
+  /** Video duration in seconds (5 or 10 for Wan 2.5) */
+  readonly duration?: 5 | 10;
+  /** Video resolution (480p, 720p, or 1080p) */
+  readonly resolution?: "480p" | "720p" | "1080p";
 }
 
 export interface FaceSwapOptions {
