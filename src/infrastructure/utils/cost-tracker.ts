@@ -10,6 +10,12 @@ import type {
   ModelCostInfo,
 } from "../../domain/entities/cost-tracking.types";
 import { findModelById } from "../../domain/constants/default-models.constants";
+import {
+  calculateCostSummary,
+  filterCostsByModel,
+  filterCostsByOperation,
+  filterCostsByTimeRange,
+} from "./cost-tracker-queries";
 
 declare const __DEV__: boolean | undefined;
 
@@ -27,9 +33,6 @@ export class CostTracker {
     };
   }
 
-  /**
-   * Get cost information for a model
-   */
   getModelCostInfo(modelId: string): ModelCostInfo {
     const model = findModelById(modelId);
 
@@ -52,17 +55,11 @@ export class CostTracker {
     };
   }
 
-  /**
-   * Calculate estimated cost for a generation
-   */
   calculateEstimatedCost(modelId: string): number {
     const costInfo = this.getModelCostInfo(modelId);
     return costInfo.costPerRequest;
   }
 
-  /**
-   * Start tracking a generation operation
-   */
   startOperation(modelId: string, operation: string): string {
     const operationId = `${Date.now()}-${operation}`;
     const estimatedCost = this.calculateEstimatedCost(modelId);
@@ -86,9 +83,6 @@ export class CostTracker {
     return operationId;
   }
 
-  /**
-   * Complete tracking for a generation operation
-   */
   completeOperation(
     operationId: string,
     modelId: string,
@@ -120,70 +114,28 @@ export class CostTracker {
     return cost;
   }
 
-  /**
-   * Get cost summary for all tracked operations
-   */
   getCostSummary(): CostSummary {
-    const completedCosts = this.costHistory.filter((c) => c.actualCost > 0);
-    const totalCost = completedCosts.reduce((sum, c) => sum + c.actualCost, 0);
-    const totalGenerations = completedCosts.length;
-    const averageCost = totalGenerations > 0 ? totalCost / totalGenerations : 0;
-
-    const modelBreakdown: Record<string, number> = {};
-    const operationBreakdown: Record<string, number> = {};
-
-    for (const cost of completedCosts) {
-      modelBreakdown[cost.model] =
-        (modelBreakdown[cost.model] ?? 0) + cost.actualCost;
-      operationBreakdown[cost.operation] =
-        (operationBreakdown[cost.operation] ?? 0) + cost.actualCost;
-    }
-
-    return {
-      totalCost,
-      totalGenerations,
-      averageCost,
-      currency: this.config.currency,
-      modelBreakdown,
-      operationBreakdown,
-    };
+    return calculateCostSummary(this.costHistory, this.config.currency);
   }
 
-  /**
-   * Get cost history
-   */
   getCostHistory(): readonly GenerationCost[] {
     return this.costHistory;
   }
 
-  /**
-   * Clear cost history
-   */
   clearHistory(): void {
     this.costHistory = [];
     this.currentOperationCosts.clear();
   }
 
-  /**
-   * Get costs for a specific model
-   */
   getCostsByModel(modelId: string): GenerationCost[] {
-    return this.costHistory.filter((c) => c.model === modelId);
+    return filterCostsByModel(this.costHistory, modelId);
   }
 
-  /**
-   * Get costs for a specific operation type
-   */
   getCostsByOperation(operation: string): GenerationCost[] {
-    return this.costHistory.filter((c) => c.operation === operation);
+    return filterCostsByOperation(this.costHistory, operation);
   }
 
-  /**
-   * Get costs for a specific time range
-   */
   getCostsByTimeRange(startTime: number, endTime: number): GenerationCost[] {
-    return this.costHistory.filter(
-      (c) => c.timestamp >= startTime && c.timestamp <= endTime,
-    );
+    return filterCostsByTimeRange(this.costHistory, startTime, endTime);
   }
 }
