@@ -1,35 +1,33 @@
 /**
- * FAL Provider
- * Implements IAIProvider interface for unified AI generation
+ * FAL Provider - Implements IAIProvider interface
+ * Orchestrates FAL AI operations with Promise Deduplication
  */
 
 import { fal } from "@fal-ai/client";
 import type {
-  IAIProvider,
-  AIProviderConfig,
-  JobSubmission,
-  JobStatus,
-  SubscribeOptions,
-  RunOptions,
-  ImageFeatureType,
-  VideoFeatureType,
-  ImageFeatureInputData,
-  VideoFeatureInputData,
-  ProviderCapabilities,
+  IAIProvider, AIProviderConfig, JobSubmission, JobStatus, SubscribeOptions,
+  RunOptions, ImageFeatureType, VideoFeatureType, ImageFeatureInputData,
+  VideoFeatureInputData, ProviderCapabilities,
 } from "@umituz/react-native-ai-generation-content";
-import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import type { CostTrackerConfig } from "../../domain/entities/cost-tracking.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
-import { mapFalStatusToJobStatus } from "./fal-status-mapper";
+import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
+import { CostTracker } from "../utils/cost-tracker";
 import {
+  createRequestKey, getExistingRequest, storeRequest,
+  removeRequest, cancelAllRequests, hasActiveRequests,
+} from "./request-store";
+import {
+  submitJob as submitJobImpl,
+  getJobStatus as getJobStatusImpl,
+  getJobResult as getJobResultImpl,
+} from "./fal-queue-operations";
+import {
+  getImageFeatureModel as getImageFeatureModelImpl,
+  getVideoFeatureModel as getVideoFeatureModelImpl,
   buildImageFeatureInput as buildImageFeatureInputImpl,
   buildVideoFeatureInput as buildVideoFeatureInputImpl,
-} from "../builders";
-import {
-  handleFalSubscription,
-  handleFalRun,
-} from "./fal-provider-subscription";
-import { CostTracker } from "../utils/cost-tracker";
+} from "./fal-feature-models";
 
 declare const __DEV__: boolean | undefined;
 
@@ -39,62 +37,40 @@ export class FalProvider implements IAIProvider {
 
   private apiKey: string | null = null;
   private initialized = false;
-  private currentAbortController: AbortController | null = null;
   private costTracker: CostTracker | null = null;
   private videoFeatureModels: Record<string, string> = {};
   private imageFeatureModels: Record<string, string> = {};
 
-  initialize(configData: AIProviderConfig): void {
-    this.apiKey = configData.apiKey;
-    this.videoFeatureModels = configData.videoFeatureModels ?? {};
-    this.imageFeatureModels = configData.imageFeatureModels ?? {};
-
+  initialize(config: AIProviderConfig): void {
+    this.apiKey = config.apiKey;
+    this.videoFeatureModels = config.videoFeatureModels ?? {};
+    this.imageFeatureModels = config.imageFeatureModels ?? {};
     fal.config({
-      credentials: configData.apiKey,
+      credentials: config.apiKey,
       retry: {
-        maxRetries: configData.maxRetries ?? DEFAULT_FAL_CONFIG.maxRetries,
-        baseDelay: configData.baseDelay ?? DEFAULT_FAL_CONFIG.baseDelay,
-        maxDelay: configData.maxDelay ?? DEFAULT_FAL_CONFIG.maxDelay,
+        maxRetries: config.maxRetries ?? DEFAULT_FAL_CONFIG.maxRetries,
+        baseDelay: config.baseDelay ?? DEFAULT_FAL_CONFIG.baseDelay,
+        maxDelay: config.maxDelay ?? DEFAULT_FAL_CONFIG.maxDelay,
       },
     });
-
     this.initialized = true;
-
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.log("[FalProvider] Initialized");
     }
   }
 
-  /**
-   * Enable cost tracking
-   */
   enableCostTracking(config?: CostTrackerConfig): void {
     this.costTracker = new CostTracker(config);
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] Cost tracking enabled");
-    }
   }
 
-  /**
-   * Disable cost tracking
-   */
   disableCostTracking(): void {
     this.costTracker = null;
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] Cost tracking disabled");
-    }
   }
 
-  /**
-   * Check if cost tracking is enabled
-   */
   isCostTrackingEnabled(): boolean {
     return this.costTracker !== null;
   }
 
-  /**
-   * Get cost tracker instance
-   */
   getCostTracker(): CostTracker | null {
     return this.costTracker;
   }
@@ -108,45 +84,28 @@ export class FalProvider implements IAIProvider {
   }
 
   isFeatureSupported(feature: ImageFeatureType | VideoFeatureType): boolean {
-    const capabilities = this.getCapabilities();
-    return (
-      capabilities.imageFeatures.includes(feature as ImageFeatureType) ||
-      capabilities.videoFeatures.includes(feature as VideoFeatureType)
-    );
+    const caps = this.getCapabilities();
+    return caps.imageFeatures.includes(feature as ImageFeatureType) ||
+           caps.videoFeatures.includes(feature as VideoFeatureType);
   }
 
-  private validateInitialization(): void {
-    if (!this.apiKey || !this.initialized) {
-      throw new Error("FAL provider not initialized. Call initialize() first.");
-    }
+  private validateInit(): void {
+    if (!this.apiKey || !this.initialized) throw new Error("FAL provider not initialized");
   }
 
-  async submitJob(
-    model: string,
-    input: Record<string, unknown>,
-  ): Promise<JobSubmission> {
-    this.validateInitialization();
-    const result = await fal.queue.submit(model, { input });
-    return {
-      requestId: result.request_id,
-      statusUrl: result.status_url,
-      responseUrl: result.response_url,
-    };
+  async submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
+    this.validateInit();
+    return submitJobImpl(model, input);
   }
 
   async getJobStatus(model: string, requestId: string): Promise<JobStatus> {
-    this.validateInitialization();
-    const status = await fal.queue.status(model, { requestId, logs: true });
-    return mapFalStatusToJobStatus(status as unknown as FalQueueStatus);
+    this.validateInit();
+    return getJobStatusImpl(model, requestId);
   }
 
-  async getJobResult<T = unknown>(
-    model: string,
-    requestId: string,
-  ): Promise<T> {
-    this.validateInitialization();
-    const result = await fal.queue.result(model, { requestId });
-    return result.data as T;
+  async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
+    this.validateInit();
+    return getJobResultImpl<T>(model, requestId);
   }
 
   async subscribe<T = unknown>(
@@ -154,46 +113,40 @@ export class FalProvider implements IAIProvider {
     input: Record<string, unknown>,
     options?: SubscribeOptions<T>,
   ): Promise<T> {
-    this.validateInitialization();
-    this.cancelCurrentRequest();
-    this.currentAbortController = new AbortController();
+    this.validateInit();
+    const key = createRequestKey(model, input);
 
-    const operationId = this.costTracker?.startOperation(model, "subscribe");
-
-    const { result, requestId } = await handleFalSubscription<T>(
-      model,
-      input,
-      options,
-      this.currentAbortController.signal,
-    );
-
-    if (operationId && this.costTracker) {
-      this.costTracker.completeOperation(
-        operationId,
-        model,
-        "subscribe",
-        requestId ?? undefined,
-      );
+    const existing = getExistingRequest<T>(key);
+    if (existing) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log(`[FalProvider] Dedup: returning existing promise for ${model}`);
+      }
+      return existing.promise;
     }
 
-    return result;
+    const abortController = new AbortController();
+    const operationId = this.costTracker?.startOperation(model, "subscribe");
+
+    const promise = handleFalSubscription<T>(model, input, options, abortController.signal)
+      .then(({ result, requestId }) => {
+        if (operationId && this.costTracker) {
+          this.costTracker.completeOperation(operationId, model, "subscribe", requestId ?? undefined);
+        }
+        return result;
+      })
+      .finally(() => removeRequest(key));
+
+    storeRequest(key, { promise, abortController });
+    return promise;
   }
 
-  async run<T = unknown>(
-    model: string,
-    input: Record<string, unknown>,
-    options?: RunOptions,
-  ): Promise<T> {
-    this.validateInitialization();
-
+  async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
+    this.validateInit();
     const operationId = this.costTracker?.startOperation(model, "run");
-
     const result = await handleFalRun<T>(model, input, options);
-
     if (operationId && this.costTracker) {
       this.costTracker.completeOperation(operationId, model, "run");
     }
-
     return result;
   }
 
@@ -204,46 +157,26 @@ export class FalProvider implements IAIProvider {
   }
 
   cancelCurrentRequest(): void {
-    if (this.currentAbortController) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[FalProvider] Cancelling current request");
-      }
-      this.currentAbortController.abort();
-      this.currentAbortController = null;
-    }
+    cancelAllRequests();
   }
 
   hasRunningRequest(): boolean {
-    return this.currentAbortController !== null;
+    return hasActiveRequests();
   }
 
   getImageFeatureModel(feature: ImageFeatureType): string {
-    const model = this.imageFeatureModels[feature];
-    if (!model) {
-      throw new Error(`No model configured for image feature: ${feature}`);
-    }
-    return model;
+    return getImageFeatureModelImpl(this.imageFeatureModels, feature);
   }
 
-  buildImageFeatureInput(
-    feature: ImageFeatureType,
-    data: ImageFeatureInputData,
-  ): Record<string, unknown> {
+  buildImageFeatureInput(feature: ImageFeatureType, data: ImageFeatureInputData): Record<string, unknown> {
     return buildImageFeatureInputImpl(feature, data);
   }
 
   getVideoFeatureModel(feature: VideoFeatureType): string {
-    const model = this.videoFeatureModels[feature];
-    if (!model) {
-      throw new Error(`No model configured for video feature: ${feature}`);
-    }
-    return model;
+    return getVideoFeatureModelImpl(this.videoFeatureModels, feature);
   }
 
-  buildVideoFeatureInput(
-    feature: VideoFeatureType,
-    data: VideoFeatureInputData,
-  ): Record<string, unknown> {
+  buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
     return buildVideoFeatureInputImpl(feature, data);
   }
 }
