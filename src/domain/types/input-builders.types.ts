@@ -36,10 +36,10 @@ export interface VideoFromImageOptions {
   readonly prompt?: string;
   /** @deprecated Use prompt instead */
   readonly motion_prompt?: string;
-  /** Video duration in seconds (5 or 10 for Wan 2.5) */
-  readonly duration?: 5 | 10;
-  /** Video resolution (480p, 720p, or 1080p) */
-  readonly resolution?: "480p" | "720p" | "1080p";
+  /** Video duration in seconds (model-specific, e.g., 4, 8, 12 for Sora 2) */
+  readonly duration?: number;
+  /** Video resolution */
+  readonly resolution?: string;
 }
 
 export interface FaceSwapOptions {

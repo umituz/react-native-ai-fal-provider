@@ -26,7 +26,7 @@ export function buildVideoFeatureInput(
 
   return buildVideoFromImageInput(sourceImageBase64, {
     prompt: effectivePrompt,
-    duration: (options?.duration as 5 | 10) || 5,
-    resolution: (options?.resolution as "480p" | "720p" | "1080p") || "720p",
+    duration: options?.duration,
+    resolution: options?.resolution,
   });
 }

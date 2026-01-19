@@ -32,7 +32,7 @@ export function buildVideoFromImageInput(
   return {
     prompt: options?.prompt || options?.motion_prompt || "Generate natural motion video",
     image_url: formatImage(base64),
-    duration: options?.duration || 5,
-    resolution: options?.resolution || "720p",
+    ...(options?.duration && { duration: options.duration }),
+    ...(options?.resolution && { resolution: options.resolution }),
   };
 }

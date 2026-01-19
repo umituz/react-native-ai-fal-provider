@@ -11,3 +11,17 @@ export type {
 
 export { useModels } from "./use-models";
 export type { UseModelsProps } from "./use-models";
+
+export {
+  useModelCapabilities,
+  useVideoDurations,
+  useVideoResolutions,
+  useAspectRatios,
+} from "./use-model-capabilities";
+export type {
+  UseModelCapabilitiesOptions,
+  UseModelCapabilitiesReturn,
+  UseVideoDurationsReturn,
+  UseVideoResolutionsReturn,
+  UseAspectRatiosReturn,
+} from "./use-model-capabilities";
