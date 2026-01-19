@@ -18,5 +18,6 @@ export type {
   RemoveObjectOptions,
   ReplaceBackgroundOptions,
   VideoFromImageOptions,
+  TextToVideoOptions,
   FaceSwapOptions,
 } from "./input-builders.types";

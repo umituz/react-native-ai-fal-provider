@@ -42,6 +42,20 @@ export interface VideoFromImageOptions {
   readonly resolution?: string;
 }
 
+/**
+ * Options for text-to-video generation (no image input)
+ */
+export interface TextToVideoOptions {
+  /** Generation prompt (required) */
+  readonly prompt: string;
+  /** Video duration in seconds */
+  readonly duration?: number;
+  /** Aspect ratio (e.g., "16:9", "9:16") */
+  readonly aspectRatio?: string;
+  /** Video resolution */
+  readonly resolution?: string;
+}
+
 export interface FaceSwapOptions {
   // No additional options
 }

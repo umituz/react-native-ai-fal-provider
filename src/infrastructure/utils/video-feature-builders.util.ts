@@ -6,6 +6,7 @@
 import type {
   ImageToImagePromptConfig,
   VideoFromImageOptions,
+  TextToVideoOptions,
 } from "../../domain/types";
 import { buildSingleImageInput } from "./base-builders.util";
 
@@ -34,5 +35,21 @@ export function buildVideoFromImageInput(
     image_url: formatImage(base64),
     ...(options?.duration && { duration: options.duration }),
     ...(options?.resolution && { resolution: options.resolution }),
+  };
+}
+
+/**
+ * Build input for text-to-video generation (no image required)
+ */
+export function buildTextToVideoInput(
+  options: TextToVideoOptions,
+): Record<string, unknown> {
+  const { prompt, duration, aspectRatio, resolution } = options;
+
+  return {
+    prompt,
+    ...(duration && { duration }),
+    ...(aspectRatio && { aspect_ratio: aspectRatio }),
+    ...(resolution && { resolution }),
   };
 }

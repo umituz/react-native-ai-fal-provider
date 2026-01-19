@@ -1,13 +1,16 @@
 /**
  * Video Feature Input Builder
- * Builds inputs for video-based AI features (Wan 2.5)
+ * Builds inputs for video-based AI features
  */
 
 import type {
   VideoFeatureType,
   VideoFeatureInputData,
 } from "@umituz/react-native-ai-generation-content";
-import { buildVideoFromImageInput } from "../utils/video-feature-builders.util";
+import {
+  buildVideoFromImageInput,
+  buildTextToVideoInput,
+} from "../utils/video-feature-builders.util";
 
 const DEFAULT_VIDEO_PROMPTS: Partial<Record<VideoFeatureType, string>> = {
   "ai-kiss": "A romantic couple kissing tenderly, smooth natural movement, cinematic lighting",
@@ -16,17 +19,38 @@ const DEFAULT_VIDEO_PROMPTS: Partial<Record<VideoFeatureType, string>> = {
   "text-to-video": "Generate a high-quality video based on the description, smooth motion",
 } as const;
 
+/**
+ * Features that require image input
+ */
+const IMAGE_REQUIRED_FEATURES: readonly VideoFeatureType[] = [
+  "image-to-video",
+  "ai-kiss",
+  "ai-hug",
+] as const;
+
+function isImageRequiredFeature(feature: VideoFeatureType): boolean {
+  return IMAGE_REQUIRED_FEATURES.includes(feature);
+}
+
 export function buildVideoFeatureInput(
   feature: VideoFeatureType,
   data: VideoFeatureInputData,
 ): Record<string, unknown> {
   const { sourceImageBase64, prompt, options } = data;
+  const effectivePrompt = prompt || DEFAULT_VIDEO_PROMPTS[feature] || "Generate video";
 
-  const effectivePrompt = prompt || DEFAULT_VIDEO_PROMPTS[feature] || "Generate video with natural motion";
+  if (isImageRequiredFeature(feature)) {
+    return buildVideoFromImageInput(sourceImageBase64 || "", {
+      prompt: effectivePrompt,
+      duration: options?.duration as number | undefined,
+      resolution: options?.resolution as string | undefined,
+    });
+  }
 
-  return buildVideoFromImageInput(sourceImageBase64, {
+  return buildTextToVideoInput({
     prompt: effectivePrompt,
-    duration: options?.duration,
-    resolution: options?.resolution,
+    duration: options?.duration as number | undefined,
+    aspectRatio: options?.aspect_ratio as string | undefined,
+    resolution: options?.resolution as string | undefined,
   });
 }
