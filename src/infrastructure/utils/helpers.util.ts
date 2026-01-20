@@ -11,6 +11,11 @@ export {
 } from "./image-helpers.util";
 
 export {
+  uploadToFalStorage,
+  uploadMultipleToFalStorage,
+} from "./fal-storage.util";
+
+export {
   truncatePrompt,
   sanitizePrompt,
 } from "./prompt-helpers.util";

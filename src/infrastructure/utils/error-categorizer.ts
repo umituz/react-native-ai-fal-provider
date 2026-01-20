@@ -7,6 +7,7 @@ import { FalErrorType, type FalErrorCategory } from "../../domain/entities/error
 const PATTERNS: Record<FalErrorType, string[]> = {
   [FalErrorType.NETWORK]: ["network", "fetch", "connection", "econnrefused", "enotfound", "etimedout"],
   [FalErrorType.TIMEOUT]: ["timeout", "timed out"],
+  [FalErrorType.IMAGE_TOO_SMALL]: ["image_too_small", "image dimensions are too small", "minimum dimensions"],
   [FalErrorType.VALIDATION]: ["validation", "invalid", "unprocessable", "422", "bad request", "400"],
   [FalErrorType.CONTENT_POLICY]: ["content_policy", "content policy", "policy violation", "nsfw", "inappropriate"],
   [FalErrorType.RATE_LIMIT]: ["rate limit", "too many requests", "429", "quota"],

@@ -28,6 +28,7 @@ import {
   buildImageFeatureInput as buildImageFeatureInputImpl,
   buildVideoFeatureInput as buildVideoFeatureInputImpl,
 } from "./fal-feature-models";
+import { preprocessInput } from "../utils/input-preprocessor.util";
 
 declare const __DEV__: boolean | undefined;
 
@@ -114,7 +115,9 @@ export class FalProvider implements IAIProvider {
     options?: SubscribeOptions<T>,
   ): Promise<T> {
     this.validateInit();
-    const key = createRequestKey(model, input);
+
+    const processedInput = await preprocessInput(input);
+    const key = createRequestKey(model, processedInput);
 
     const existing = getExistingRequest<T>(key);
     if (existing) {
@@ -127,7 +130,7 @@ export class FalProvider implements IAIProvider {
     const abortController = new AbortController();
     const operationId = this.costTracker?.startOperation(model, "subscribe");
 
-    const promise = handleFalSubscription<T>(model, input, options, abortController.signal)
+    const promise = handleFalSubscription<T>(model, processedInput, options, abortController.signal)
       .then(({ result, requestId }) => {
         if (operationId && this.costTracker) {
           this.costTracker.completeOperation(operationId, model, "subscribe", requestId ?? undefined);
@@ -142,8 +145,9 @@ export class FalProvider implements IAIProvider {
 
   async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
     this.validateInit();
+    const processedInput = await preprocessInput(input);
     const operationId = this.costTracker?.startOperation(model, "run");
-    const result = await handleFalRun<T>(model, input, options);
+    const result = await handleFalRun<T>(model, processedInput, options);
     if (operationId && this.costTracker) {
       this.costTracker.completeOperation(operationId, model, "run");
     }

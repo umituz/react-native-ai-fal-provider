@@ -12,6 +12,42 @@ import { validateNSFWContent } from "../validators/nsfw-validator";
 
 declare const __DEV__: boolean | undefined;
 
+interface FalApiErrorDetail {
+  msg?: string;
+  type?: string;
+  loc?: string[];
+}
+
+interface FalApiError {
+  body?: { detail?: FalApiErrorDetail[] } | string;
+  message?: string;
+}
+
+/**
+ * Parse FAL API error and extract user-friendly message
+ */
+function parseFalError(error: unknown): string {
+  const fallback = error instanceof Error ? error.message : String(error);
+
+  const falError = error as FalApiError;
+  if (!falError?.body) return fallback;
+
+  const body = typeof falError.body === "string"
+    ? safeJsonParse(falError.body)
+    : falError.body;
+
+  const detail = body?.detail?.[0];
+  return detail?.msg ?? falError.message ?? fallback;
+}
+
+function safeJsonParse(str: string): { detail?: FalApiErrorDetail[] } | null {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Handle FAL subscription with timeout and cancellation
  */
@@ -26,7 +62,14 @@ export async function handleFalSubscription<T = unknown>(
   let currentRequestId: string | null = null;
 
   if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.log("[FalProvider] Subscribe started:", { model, timeoutMs });
+    console.log("[FalProvider] Subscribe started:", {
+      model,
+      timeoutMs,
+      inputKeys: Object.keys(input),
+      hasImageUrl: !!input.image_url,
+      hasPrompt: !!input.prompt,
+      promptPreview: input.prompt ? String(input.prompt).substring(0, 50) + "..." : "N/A",
+    });
   }
 
   let lastStatus = "";
@@ -68,13 +111,29 @@ export async function handleFalSubscription<T = unknown>(
     ]);
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] Subscribe completed:", { model, requestId: currentRequestId });
+      console.log("[FalProvider] Subscribe completed:", {
+        model,
+        requestId: currentRequestId,
+        resultKeys: result ? Object.keys(result as object) : "null",
+        hasVideo: !!(result as Record<string, unknown>)?.video,
+        hasOutput: !!(result as Record<string, unknown>)?.output,
+        hasData: !!(result as Record<string, unknown>)?.data,
+      });
+      // Log full result structure for debugging
+      console.log("[FalProvider] Result structure:", JSON.stringify(result, null, 2).substring(0, 1000));
     }
 
     validateNSFWContent(result as Record<string, unknown>);
 
     options?.onResult?.(result as T);
     return { result: result as T, requestId: currentRequestId };
+  } catch (error) {
+    // Parse FAL error and throw with user-friendly message
+    const userMessage = parseFalError(error);
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.error("[FalProvider] Error:", userMessage);
+    }
+    throw new Error(userMessage);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
@@ -94,16 +153,24 @@ export async function handleFalRun<T = unknown>(
     console.log("[FalProvider] run() model:", model, "inputKeys:", Object.keys(input));
   }
 
-  const result = await fal.run(model, { input });
+  try {
+    const result = await fal.run(model, { input });
 
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.log("[FalProvider] run() raw result:", JSON.stringify(result, null, 2));
-    console.log("[FalProvider] run() result type:", typeof result);
-    console.log("[FalProvider] run() result keys:", result ? Object.keys(result as object) : "null");
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[FalProvider] run() raw result:", JSON.stringify(result, null, 2));
+      console.log("[FalProvider] run() result type:", typeof result);
+      console.log("[FalProvider] run() result keys:", result ? Object.keys(result as object) : "null");
+    }
+
+    validateNSFWContent(result as Record<string, unknown>);
+
+    options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
+    return result as T;
+  } catch (error) {
+    const userMessage = parseFalError(error);
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.error("[FalProvider] run() Error:", userMessage);
+    }
+    throw new Error(userMessage);
   }
-
-  validateNSFWContent(result as Record<string, unknown>);
-
-  options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
-  return result as T;
 }

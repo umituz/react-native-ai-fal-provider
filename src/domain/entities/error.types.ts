@@ -8,6 +8,7 @@ export enum FalErrorType {
   TIMEOUT = "timeout",
   API_ERROR = "api_error",
   VALIDATION = "validation",
+  IMAGE_TOO_SMALL = "image_too_small",
   CONTENT_POLICY = "content_policy",
   RATE_LIMIT = "rate_limit",
   AUTHENTICATION = "authentication",

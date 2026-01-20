@@ -90,6 +90,8 @@ export {
   extractBase64,
   getDataUriExtension,
   isImageDataUri,
+  uploadToFalStorage,
+  uploadMultipleToFalStorage,
   calculateTimeoutWithJitter,
   formatCreditCost,
   truncatePrompt,

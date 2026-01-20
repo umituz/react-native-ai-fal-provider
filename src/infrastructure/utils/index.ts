@@ -40,6 +40,8 @@ export {
   extractBase64,
   getDataUriExtension,
   isImageDataUri,
+  uploadToFalStorage,
+  uploadMultipleToFalStorage,
   calculateTimeoutWithJitter,
   formatCreditCost,
   truncatePrompt,
@@ -84,3 +86,5 @@ export {
 export type { IJobStorage, InMemoryJobStorage } from "./job-storage";
 
 export { CostTracker } from "./cost-tracker";
+
+export { preprocessInput } from "./input-preprocessor.util";
