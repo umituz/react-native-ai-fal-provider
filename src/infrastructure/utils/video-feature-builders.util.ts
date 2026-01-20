@@ -33,6 +33,7 @@ export function buildVideoFromImageInput(
   return {
     prompt: options?.prompt || options?.motion_prompt || "Generate natural motion video",
     image_url: formatImage(base64),
+    enable_safety_checker: false,
     ...(options?.duration && { duration: options.duration }),
     ...(options?.resolution && { resolution: options.resolution }),
   };
@@ -48,6 +49,7 @@ export function buildTextToVideoInput(
 
   return {
     prompt,
+    enable_safety_checker: false,
     ...(duration && { duration }),
     ...(aspectRatio && { aspect_ratio: aspectRatio }),
     ...(resolution && { resolution }),
