@@ -88,7 +88,7 @@ export function createAiProviderInitModule(
     name: 'aiProviders',
     critical,
     dependsOn,
-    init: async () => {
+    init: () => {
       try {
         const apiKey = getApiKey();
 
@@ -96,11 +96,11 @@ export function createAiProviderInitModule(
           if (typeof __DEV__ !== 'undefined' && __DEV__) {
             console.log('[createAiProviderInitModule] No API key - skipping');
           }
-          return true; // Not an error, just skip
+          return Promise.resolve(true); // Not an error, just skip
         }
 
         // Initialize FAL provider
-        await falProvider.initialize({
+        falProvider.initialize({
           apiKey,
           videoFeatureModels,
         });
@@ -113,13 +113,13 @@ export function createAiProviderInitModule(
           console.log('[createAiProviderInitModule] AI provider initialized');
         }
 
-        return true;
+        return Promise.resolve(true);
       } catch (error) {
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
           console.error('[createAiProviderInitModule] Error:', error);
         }
         // Continue on error - AI provider is not critical
-        return true;
+        return Promise.resolve(true);
       }
     },
   };

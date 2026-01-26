@@ -129,13 +129,32 @@ export class FalProvider implements IAIProvider {
 
     const abortController = new AbortController();
     const operationId = this.costTracker?.startOperation(model, "subscribe");
+    // Capture costTracker reference to avoid race condition during reset
+    const tracker = this.costTracker;
 
     const promise = handleFalSubscription<T>(model, processedInput, options, abortController.signal)
       .then(({ result, requestId }) => {
-        if (operationId && this.costTracker) {
-          this.costTracker.completeOperation(operationId, model, "subscribe", requestId ?? undefined);
+        if (operationId && tracker) {
+          try {
+            tracker.completeOperation(operationId, model, "subscribe", requestId ?? undefined);
+          } catch (costError) {
+            if (typeof __DEV__ !== "undefined" && __DEV__) {
+              console.warn("[FalProvider] Cost tracking failed:", costError);
+            }
+          }
         }
         return result;
+      })
+      .catch((error) => {
+        // Mark operation as failed in cost tracker
+        if (operationId && tracker) {
+          try {
+            tracker.failOperation(operationId);
+          } catch {
+            // Silently ignore cost tracking errors on failure path
+          }
+        }
+        throw error;
       })
       .finally(() => removeRequest(key));
 
@@ -147,11 +166,32 @@ export class FalProvider implements IAIProvider {
     this.validateInit();
     const processedInput = await preprocessInput(input);
     const operationId = this.costTracker?.startOperation(model, "run");
-    const result = await handleFalRun<T>(model, processedInput, options);
-    if (operationId && this.costTracker) {
-      this.costTracker.completeOperation(operationId, model, "run");
+    // Capture costTracker reference to avoid race condition during reset
+    const tracker = this.costTracker;
+
+    try {
+      const result = await handleFalRun<T>(model, processedInput, options);
+      if (operationId && tracker) {
+        try {
+          tracker.completeOperation(operationId, model, "run");
+        } catch (costError) {
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.warn("[FalProvider] Cost tracking failed:", costError);
+          }
+        }
+      }
+      return result;
+    } catch (error) {
+      // Mark operation as failed in cost tracker
+      if (operationId && tracker) {
+        try {
+          tracker.failOperation(operationId);
+        } catch {
+          // Silently ignore cost tracking errors on failure path
+        }
+      }
+      throw error;
     }
-    return result;
   }
 
   reset(): void {

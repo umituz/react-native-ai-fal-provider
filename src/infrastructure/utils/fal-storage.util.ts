@@ -18,9 +18,12 @@ declare const __DEV__: boolean | undefined;
  * Uses design system's filesystem utilities for React Native compatibility
  */
 export async function uploadToFalStorage(base64: string): Promise<string> {
-  const tempUri = await base64ToTempFile(base64);
-  const fileSize = getFileSize(tempUri);
-  const mimeType = detectMimeType(base64);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
+  const tempUri = (await base64ToTempFile(base64)) as string;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+  const fileSize = getFileSize(tempUri) as number;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+  const mimeType = detectMimeType(base64) as string;
 
   if (typeof __DEV__ !== "undefined" && __DEV__) {
     console.log("[FalStorage] Uploading image", {
@@ -33,6 +36,7 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
   const blob = await response.blob();
   const url = await fal.storage.upload(blob);
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   await deleteTempFile(tempUri);
 
   if (typeof __DEV__ !== "undefined" && __DEV__) {

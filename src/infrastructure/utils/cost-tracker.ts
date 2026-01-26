@@ -34,18 +34,24 @@ export class CostTracker {
   }
 
   getModelCostInfo(modelId: string): ModelCostInfo {
-    const model = findModelById(modelId);
+    try {
+      const model = findModelById(modelId);
 
-    if (model?.pricing) {
-      return {
-        model: modelId,
-        costPerRequest: model.pricing.freeUserCost,
-        currency: this.config.currency,
-      };
-    }
+      if (model?.pricing) {
+        return {
+          model: modelId,
+          costPerRequest: model.pricing.freeUserCost,
+          currency: this.config.currency,
+        };
+      }
 
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.warn("[CostTracker] No pricing found for model:", modelId);
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.warn("[CostTracker] No pricing found for model:", modelId);
+      }
+    } catch (error) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.warn("[CostTracker] Error finding model:", modelId, error);
+      }
     }
 
     return {
@@ -112,6 +118,13 @@ export class CostTracker {
     }
 
     return cost;
+  }
+
+  /**
+   * Mark an operation as failed - removes from pending without adding to history
+   */
+  failOperation(operationId: string): void {
+    this.currentOperationCosts.delete(operationId);
   }
 
   getCostSummary(): CostSummary {

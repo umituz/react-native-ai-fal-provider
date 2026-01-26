@@ -42,7 +42,7 @@ function parseFalError(error: unknown): string {
 
 function safeJsonParse(str: string): { detail?: FalApiErrorDetail[] } | null {
   try {
-    return JSON.parse(str);
+    return JSON.parse(str) as { detail?: FalApiErrorDetail[] };
   } catch {
     return null;
   }
@@ -60,6 +60,7 @@ export async function handleFalSubscription<T = unknown>(
   const timeoutMs = options?.timeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let currentRequestId: string | null = null;
+  let abortHandler: (() => void) | null = null;
 
   if (typeof __DEV__ !== "undefined" && __DEV__) {
     console.log("[FalProvider] Subscribe started:", {
@@ -72,6 +73,11 @@ export async function handleFalSubscription<T = unknown>(
     });
   }
 
+  // Check if already aborted before starting
+  if (signal?.aborted) {
+    throw new Error("Request cancelled by user");
+  }
+
   let lastStatus = "";
 
   try {
@@ -81,7 +87,7 @@ export async function handleFalSubscription<T = unknown>(
         logs: false,
         pollInterval: DEFAULT_FAL_CONFIG.pollInterval,
         onQueueUpdate: (update: { status: string; logs?: unknown[]; request_id?: string }) => {
-          currentRequestId = update.request_id ?? null;
+          currentRequestId = update.request_id ?? currentRequestId;
           const jobStatus = mapFalStatusToJobStatus({
             ...update as unknown as FalQueueStatus,
             requestId: currentRequestId ?? "",
@@ -100,12 +106,13 @@ export async function handleFalSubscription<T = unknown>(
           reject(new Error("FAL subscription timeout"));
         }, timeoutMs);
       }),
-      // Abort promise
+      // Abort promise with cleanup
       ...(signal ? [
         new Promise<never>((_, reject) => {
-          signal.addEventListener("abort", () => {
+          abortHandler = () => {
             reject(new Error("Request cancelled by user"));
-          });
+          };
+          signal.addEventListener("abort", abortHandler);
         }),
       ] as const : []),
     ]);
@@ -136,6 +143,10 @@ export async function handleFalSubscription<T = unknown>(
     throw new Error(userMessage);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
+    // Clean up abort listener to prevent memory leak
+    if (signal && abortHandler) {
+      signal.removeEventListener("abort", abortHandler);
+    }
   }
 }
 
