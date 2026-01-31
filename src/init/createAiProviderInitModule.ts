@@ -32,6 +32,12 @@ export interface AiProviderInitModuleConfig {
   videoFeatureModels?: Record<string, string>;
 
   /**
+   * Image feature models mapping
+   * Maps feature types to FAL model IDs
+   */
+  imageFeatureModels?: Record<string, string>;
+
+  /**
    * Provider ID to use
    * @default "fal"
    */
@@ -79,6 +85,7 @@ export function createAiProviderInitModule(
   const {
     getApiKey,
     videoFeatureModels,
+    imageFeatureModels,
     providerId = 'fal',
     critical = false,
     dependsOn = ['firebase'],
@@ -103,6 +110,7 @@ export function createAiProviderInitModule(
         falProvider.initialize({
           apiKey,
           videoFeatureModels,
+          imageFeatureModels,
         });
 
         // Register and set as active
