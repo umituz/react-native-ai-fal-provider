@@ -6,7 +6,7 @@
 import type {
   ImageFeatureType,
   ImageFeatureInputData,
-} from "@umituz/react-native-ai-generation-content";
+} from "../../domain/types";
 import { buildSingleImageInput } from "../utils/base-builders.util";
 import {
   buildUpscaleInput,

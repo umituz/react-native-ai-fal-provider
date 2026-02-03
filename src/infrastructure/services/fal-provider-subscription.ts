@@ -4,7 +4,7 @@
  */
 
 import { fal } from "@fal-ai/client";
-import type { SubscribeOptions, RunOptions } from "@umituz/react-native-ai-generation-content";
+import type { SubscribeOptions, RunOptions } from "../../domain/types";
 import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import { DEFAULT_FAL_CONFIG } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";

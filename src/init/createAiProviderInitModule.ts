@@ -4,7 +4,6 @@
  */
 
 import { falProvider } from '../infrastructure/services';
-import { providerRegistry } from '@umituz/react-native-ai-generation-content';
 
 declare const __DEV__: boolean;
 
@@ -36,12 +35,6 @@ export interface AiProviderInitModuleConfig {
    * Maps feature types to FAL model IDs
    */
   imageFeatureModels?: Record<string, string>;
-
-  /**
-   * Provider ID to use
-   * @default "fal"
-   */
-  providerId?: string;
 
   /**
    * Whether this module is critical for app startup
@@ -86,7 +79,6 @@ export function createAiProviderInitModule(
     getApiKey,
     videoFeatureModels,
     imageFeatureModels,
-    providerId = 'fal',
     critical = false,
     dependsOn = ['firebase'],
   } = config;
@@ -113,12 +105,8 @@ export function createAiProviderInitModule(
           imageFeatureModels,
         });
 
-        // Register and set as active
-        providerRegistry.register(falProvider);
-        providerRegistry.setActiveProvider(providerId);
-
         if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.log('[createAiProviderInitModule] AI provider initialized');
+          console.log('[createAiProviderInitModule] FAL provider initialized');
         }
 
         return Promise.resolve(true);

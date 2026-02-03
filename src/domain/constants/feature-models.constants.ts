@@ -4,7 +4,7 @@
  * Video models are provided by the app via config
  */
 
-import type { ImageFeatureType } from "@umituz/react-native-ai-generation-content";
+import type { ImageFeatureType } from "../types";
 
 /**
  * FAL model IDs for IMAGE processing features

@@ -3,7 +3,7 @@
  * Maps FAL queue status to standardized job status
  */
 
-import type { JobStatus, AIJobStatusType } from "@umituz/react-native-ai-generation-content";
+import type { JobStatus, AIJobStatusType } from "../../domain/types";
 import type { FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
 
 const STATUS_MAP = {

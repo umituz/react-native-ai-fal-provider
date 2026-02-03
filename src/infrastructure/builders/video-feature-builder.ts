@@ -6,15 +6,13 @@
 import type {
   VideoFeatureType,
   VideoFeatureInputData,
-} from "@umituz/react-native-ai-generation-content";
+} from "../../domain/types";
 import {
   buildVideoFromImageInput,
   buildTextToVideoInput,
 } from "../utils/video-feature-builders.util";
 
 const DEFAULT_VIDEO_PROMPTS: Partial<Record<VideoFeatureType, string>> = {
-  "ai-kiss": "A romantic couple kissing tenderly, smooth natural movement, cinematic lighting",
-  "ai-hug": "A heartwarming embrace between two people, gentle natural movement, cinematic quality",
   "image-to-video": "Animate this image with natural, smooth motion while preserving all details",
   "text-to-video": "Generate a high-quality video based on the description, smooth motion",
 } as const;
@@ -24,8 +22,6 @@ const DEFAULT_VIDEO_PROMPTS: Partial<Record<VideoFeatureType, string>> = {
  */
 const IMAGE_REQUIRED_FEATURES: readonly VideoFeatureType[] = [
   "image-to-video",
-  "ai-kiss",
-  "ai-hug",
 ] as const;
 
 function isImageRequiredFeature(feature: VideoFeatureType): boolean {

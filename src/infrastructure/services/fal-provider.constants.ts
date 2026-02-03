@@ -3,7 +3,7 @@
  * Configuration and capability definitions for FAL AI provider
  */
 
-import type { ProviderCapabilities } from "@umituz/react-native-ai-generation-content";
+import type { ProviderCapabilities } from "../../domain/types";
 
 export const DEFAULT_FAL_CONFIG = {
   maxRetries: 3,
@@ -24,7 +24,7 @@ export const FAL_CAPABILITIES: ProviderCapabilities = {
     "hd-touch-up",
     "replace-background",
   ] as const,
-  videoFeatures: ["ai-hug", "ai-kiss"] as const,
+  videoFeatures: ["image-to-video", "text-to-video"] as const,
   textToImage: true,
   textToVideo: true,
   imageToVideo: true,

@@ -2,7 +2,7 @@
  * Job Metadata Types
  */
 
-import type { JobStatus } from "@umituz/react-native-ai-generation-content";
+import type { JobStatus } from "../../../domain/types";
 
 /**
  * Job metadata for tracking and persistence

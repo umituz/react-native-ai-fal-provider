@@ -3,7 +3,7 @@
  */
 
 import { fal } from "@fal-ai/client";
-import type { JobSubmission, JobStatus } from "@umituz/react-native-ai-generation-content";
+import type { JobSubmission, JobStatus } from "../../domain/types";
 import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 

@@ -21,3 +21,27 @@ export type {
   TextToVideoOptions,
   FaceSwapOptions,
 } from "./input-builders.types";
+
+// Provider Types (local definitions)
+export type {
+  ImageFeatureType,
+  VideoFeatureType,
+  AIProviderConfig,
+  AIJobStatusType,
+  AILogEntry,
+  JobSubmission,
+  JobStatus,
+  ProviderProgressInfo,
+  SubscribeOptions,
+  RunOptions,
+  ProviderCapabilities,
+  ImageFeatureInputData,
+  VideoFeatureInputData,
+  IAIProviderLifecycle,
+  IAIProviderCapabilities,
+  IAIProviderJobManager,
+  IAIProviderExecutor,
+  IAIProviderImageFeatures,
+  IAIProviderVideoFeatures,
+  IAIProvider,
+} from "./provider.types";

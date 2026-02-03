@@ -140,8 +140,8 @@ Select model from `DEFAULT_TEXT_TO_VIDEO_MODELS` and pass to provider.
 **Location:** `src/infrastructure/builders/video-feature-builder.ts`
 
 **Features:**
-- AI Hug - Generate hug videos from 2 person images
-- AI Kiss - Generate kiss videos from 2 person images
+- Image-to-Video - Convert images to video
+- Text-to-Video - Generate video from text prompts
 
 **Usage:**
 Use `buildVideoFromImageInput()` from `src/infrastructure/utils/video-feature-builders.util.ts`

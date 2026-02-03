@@ -8,27 +8,17 @@ import type {
   IAIProvider, AIProviderConfig, JobSubmission, JobStatus, SubscribeOptions,
   RunOptions, ImageFeatureType, VideoFeatureType, ImageFeatureInputData,
   VideoFeatureInputData, ProviderCapabilities,
-} from "@umituz/react-native-ai-generation-content";
+} from "../../domain/types";
 import type { CostTrackerConfig } from "../../domain/entities/cost-tracking.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
-import { CostTracker } from "../utils/cost-tracker";
+import { CostTracker, executeWithCostTracking, preprocessInput } from "../utils";
 import {
   createRequestKey, getExistingRequest, storeRequest,
   removeRequest, cancelAllRequests, hasActiveRequests,
 } from "./request-store";
-import {
-  submitJob as submitJobImpl,
-  getJobStatus as getJobStatusImpl,
-  getJobResult as getJobResultImpl,
-} from "./fal-queue-operations";
-import {
-  getImageFeatureModel as getImageFeatureModelImpl,
-  getVideoFeatureModel as getVideoFeatureModelImpl,
-  buildImageFeatureInput as buildImageFeatureInputImpl,
-  buildVideoFeatureInput as buildVideoFeatureInputImpl,
-} from "./fal-feature-models";
-import { preprocessInput } from "../utils/input-preprocessor.util";
+import * as queueOps from "./fal-queue-operations";
+import * as featureModels from "./fal-feature-models";
 
 declare const __DEV__: boolean | undefined;
 
@@ -96,17 +86,17 @@ export class FalProvider implements IAIProvider {
 
   async submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
     this.validateInit();
-    return submitJobImpl(model, input);
+    return queueOps.submitJob(model, input);
   }
 
   async getJobStatus(model: string, requestId: string): Promise<JobStatus> {
     this.validateInit();
-    return getJobStatusImpl(model, requestId);
+    return queueOps.getJobStatus(model, requestId);
   }
 
   async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
     this.validateInit();
-    return getJobResultImpl<T>(model, requestId);
+    return queueOps.getJobResult<T>(model, requestId);
   }
 
   async subscribe<T = unknown>(
@@ -128,35 +118,15 @@ export class FalProvider implements IAIProvider {
     }
 
     const abortController = new AbortController();
-    const operationId = this.costTracker?.startOperation(model, "subscribe");
-    // Capture costTracker reference to avoid race condition during reset
     const tracker = this.costTracker;
 
-    const promise = handleFalSubscription<T>(model, processedInput, options, abortController.signal)
-      .then(({ result, requestId }) => {
-        if (operationId && tracker) {
-          try {
-            tracker.completeOperation(operationId, model, "subscribe", requestId ?? undefined);
-          } catch (costError) {
-            if (typeof __DEV__ !== "undefined" && __DEV__) {
-              console.warn("[FalProvider] Cost tracking failed:", costError);
-            }
-          }
-        }
-        return result;
-      })
-      .catch((error) => {
-        // Mark operation as failed in cost tracker
-        if (operationId && tracker) {
-          try {
-            tracker.failOperation(operationId);
-          } catch {
-            // Silently ignore cost tracking errors on failure path
-          }
-        }
-        throw error;
-      })
-      .finally(() => removeRequest(key));
+    const promise = executeWithCostTracking({
+      tracker,
+      model,
+      operation: "subscribe",
+      execute: () => handleFalSubscription<T>(model, processedInput, options, abortController.signal),
+      getRequestId: (res) => res.requestId ?? undefined,
+    }).then((res) => res.result).finally(() => removeRequest(key));
 
     storeRequest(key, { promise, abortController });
     return promise;
@@ -165,33 +135,13 @@ export class FalProvider implements IAIProvider {
   async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
     this.validateInit();
     const processedInput = await preprocessInput(input);
-    const operationId = this.costTracker?.startOperation(model, "run");
-    // Capture costTracker reference to avoid race condition during reset
-    const tracker = this.costTracker;
 
-    try {
-      const result = await handleFalRun<T>(model, processedInput, options);
-      if (operationId && tracker) {
-        try {
-          tracker.completeOperation(operationId, model, "run");
-        } catch (costError) {
-          if (typeof __DEV__ !== "undefined" && __DEV__) {
-            console.warn("[FalProvider] Cost tracking failed:", costError);
-          }
-        }
-      }
-      return result;
-    } catch (error) {
-      // Mark operation as failed in cost tracker
-      if (operationId && tracker) {
-        try {
-          tracker.failOperation(operationId);
-        } catch {
-          // Silently ignore cost tracking errors on failure path
-        }
-      }
-      throw error;
-    }
+    return executeWithCostTracking({
+      tracker: this.costTracker,
+      model,
+      operation: "run",
+      execute: () => handleFalRun<T>(model, processedInput, options),
+    });
   }
 
   reset(): void {
@@ -209,19 +159,19 @@ export class FalProvider implements IAIProvider {
   }
 
   getImageFeatureModel(feature: ImageFeatureType): string {
-    return getImageFeatureModelImpl(this.imageFeatureModels, feature);
+    return featureModels.getImageFeatureModel(this.imageFeatureModels, feature);
   }
 
   buildImageFeatureInput(feature: ImageFeatureType, data: ImageFeatureInputData): Record<string, unknown> {
-    return buildImageFeatureInputImpl(feature, data);
+    return featureModels.buildImageFeatureInput(feature, data);
   }
 
   getVideoFeatureModel(feature: VideoFeatureType): string {
-    return getVideoFeatureModelImpl(this.videoFeatureModels, feature);
+    return featureModels.getVideoFeatureModel(this.videoFeatureModels, feature);
   }
 
   buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
-    return buildVideoFeatureInputImpl(feature, data);
+    return featureModels.buildVideoFeatureInput(feature, data);
   }
 }
 

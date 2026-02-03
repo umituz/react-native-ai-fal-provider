@@ -7,7 +7,7 @@ import type {
   VideoFeatureType,
   ImageFeatureInputData,
   VideoFeatureInputData,
-} from "@umituz/react-native-ai-generation-content";
+} from "../../domain/types";
 import {
   buildImageFeatureInput as buildImageFeatureInputImpl,
   buildVideoFeatureInput as buildVideoFeatureInputImpl,

@@ -3,7 +3,7 @@
  * Create, update, and status check operations
  */
 
-import type { JobStatus } from "@umituz/react-native-ai-generation-content";
+import type { JobStatus } from "../../../domain/types";
 import type { FalJobMetadata } from "./job-metadata.types";
 
 /**
