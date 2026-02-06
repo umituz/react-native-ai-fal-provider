@@ -22,7 +22,13 @@ export function getRequestStore(): RequestStore {
 
 export function createRequestKey(model: string, input: Record<string, unknown>): string {
   const inputStr = JSON.stringify(input, Object.keys(input).sort());
-  return `${model}:${inputStr.slice(0, 100)}`;
+  // Simple hash to avoid collisions from truncation
+  let hash = 0;
+  for (let i = 0; i < inputStr.length; i++) {
+    const char = inputStr.charCodeAt(i);
+    hash = ((hash << 5) - hash + char) | 0;
+  }
+  return `${model}:${hash.toString(36)}`;
 }
 
 export function getExistingRequest<T>(key: string): ActiveRequest<T> | undefined {

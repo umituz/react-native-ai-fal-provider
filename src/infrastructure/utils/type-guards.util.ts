@@ -44,6 +44,7 @@ export function isFalErrorType(value: unknown): value is FalErrorType {
     FalErrorType.TIMEOUT,
     FalErrorType.API_ERROR,
     FalErrorType.VALIDATION,
+    FalErrorType.IMAGE_TOO_SMALL,
     FalErrorType.CONTENT_POLICY,
     FalErrorType.RATE_LIMIT,
     FalErrorType.AUTHENTICATION,

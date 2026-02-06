@@ -10,7 +10,7 @@ const PATTERNS: Record<FalErrorType, string[]> = {
   [FalErrorType.IMAGE_TOO_SMALL]: ["image_too_small", "image dimensions are too small", "minimum dimensions"],
   [FalErrorType.VALIDATION]: ["validation", "invalid", "unprocessable", "422", "bad request", "400"],
   [FalErrorType.CONTENT_POLICY]: ["content_policy", "content policy", "policy violation", "nsfw", "inappropriate"],
-  [FalErrorType.RATE_LIMIT]: ["rate limit", "too many requests", "429", "quota"],
+  [FalErrorType.RATE_LIMIT]: ["rate limit", "too many requests", "429"],
   [FalErrorType.AUTHENTICATION]: ["unauthorized", "401", "forbidden", "403", "api key", "authentication"],
   [FalErrorType.QUOTA_EXCEEDED]: ["quota exceeded", "insufficient credits", "billing", "payment required", "402"],
   [FalErrorType.MODEL_NOT_FOUND]: ["model not found", "endpoint not found", "404", "not found"],
