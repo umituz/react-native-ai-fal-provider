@@ -34,8 +34,6 @@ export interface ReplaceBackgroundOptions {
 
 export interface VideoFromImageOptions {
   readonly prompt?: string;
-  /** @deprecated Use prompt instead */
-  readonly motion_prompt?: string;
   /** Video duration in seconds (model-specific, e.g., 4, 8, 12 for Sora 2) */
   readonly duration?: number;
   /** Video resolution */

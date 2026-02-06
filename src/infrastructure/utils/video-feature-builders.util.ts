@@ -31,7 +31,7 @@ export function buildVideoFromImageInput(
     b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
 
   return {
-    prompt: options?.prompt || options?.motion_prompt || "Generate natural motion video",
+    prompt: options?.prompt || "Generate natural motion video",
     image_url: formatImage(base64),
     enable_safety_checker: false,
     ...(options?.duration && { duration: options.duration }),
