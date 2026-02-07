@@ -12,14 +12,15 @@ import type {
   FaceSwapOptions,
 } from "../../domain/types";
 import { buildSingleImageInput } from "./base-builders.util";
+import { formatImageDataUri } from "./image-helpers.util";
 
 export function buildUpscaleInput(
   base64: string,
   options?: UpscaleOptions,
 ): Record<string, unknown> {
   return buildSingleImageInput(base64, {
-    scale: options?.scaleFactor || 2,
-    face_enhance: options?.enhanceFaces || false,
+    scale: options?.scaleFactor ?? 2,
+    face_enhance: options?.enhanceFaces ?? false,
   });
 }
 
@@ -28,7 +29,7 @@ export function buildPhotoRestoreInput(
   options?: PhotoRestoreOptions,
 ): Record<string, unknown> {
   return buildSingleImageInput(base64, {
-    face_enhance: options?.enhanceFaces || true,
+    face_enhance: options?.enhanceFaces ?? true,
   });
 }
 
@@ -37,12 +38,9 @@ export function buildFaceSwapInput(
   targetBase64: string,
   _options?: FaceSwapOptions,
 ): Record<string, unknown> {
-  const formatImage = (b64: string) =>
-    b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
-
   return {
-    base_image_url: formatImage(sourceBase64),
-    swap_image_url: formatImage(targetBase64),
+    base_image_url: formatImageDataUri(sourceBase64),
+    swap_image_url: formatImageDataUri(targetBase64),
   };
 }
 

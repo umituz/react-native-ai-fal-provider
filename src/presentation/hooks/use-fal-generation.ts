@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { falProvider } from "../../infrastructure/services/fal-provider";
-import { mapFalError, isFalErrorRetryable } from "../../infrastructure/utils/error-mapper";
+import { mapFalError } from "../../infrastructure/utils/error-mapper";
 import type { FalJobInput, FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
 import type { FalErrorInfo } from "../../domain/entities/error.types";
 
@@ -38,7 +38,6 @@ export function useFalGeneration<T = unknown>(
 
   const lastRequestRef = useRef<{ endpoint: string; input: FalJobInput } | null>(null);
   const currentRequestIdRef = useRef<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const generate = useCallback(
     async (modelEndpoint: string, input: FalJobInput): Promise<T | null> => {
@@ -48,9 +47,6 @@ export function useFalGeneration<T = unknown>(
       setData(null);
       currentRequestIdRef.current = null;
       setIsCancelling(false);
-
-      // Create abort controller for this request
-      abortControllerRef.current = new AbortController();
 
       try {
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
@@ -83,7 +79,6 @@ export function useFalGeneration<T = unknown>(
       } finally {
         setIsLoading(false);
         setIsCancelling(false);
-        abortControllerRef.current = null;
       }
     },
     [options]
@@ -96,10 +91,9 @@ export function useFalGeneration<T = unknown>(
   }, [generate]);
 
   const cancel = useCallback(() => {
-    if (abortControllerRef.current) {
+    if (falProvider.hasRunningRequest()) {
       setIsCancelling(true);
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+      falProvider.cancelCurrentRequest();
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         console.log("[useFalGeneration] Request cancelled");
       }
@@ -111,6 +105,7 @@ export function useFalGeneration<T = unknown>(
     setData(null);
     setError(null);
     setIsLoading(false);
+    setIsCancelling(false);
     lastRequestRef.current = null;
     currentRequestIdRef.current = null;
   }, [cancel]);
@@ -119,7 +114,7 @@ export function useFalGeneration<T = unknown>(
     data,
     error,
     isLoading,
-    isRetryable: error ? isFalErrorRetryable(error.originalError) : false,
+    isRetryable: error?.retryable ?? false,
     requestId: currentRequestIdRef.current,
     isCancelling,
     generate,

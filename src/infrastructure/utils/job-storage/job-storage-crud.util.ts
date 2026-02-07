@@ -4,6 +4,7 @@
  */
 
 import type { FalJobMetadata } from "../job-metadata";
+import { updateJobMetadata } from "../job-metadata";
 import type { IJobStorage } from "./job-storage-interface";
 
 /**
@@ -61,13 +62,6 @@ export async function updateJobStatus(
     throw new Error(`Job not found: ${requestId}`);
   }
 
-  const updated: FalJobMetadata = {
-    ...metadata,
-    status,
-    updatedAt: new Date().toISOString(),
-    ...(status === "COMPLETED" || status === "FAILED" ? { completedAt: new Date().toISOString() } : {}),
-    ...(error ? { error } : {}),
-  };
-
+  const updated = updateJobMetadata(metadata, status, error);
   await saveJobMetadata(storage, updated);
 }

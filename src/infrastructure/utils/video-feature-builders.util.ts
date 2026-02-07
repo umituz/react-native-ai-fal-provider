@@ -9,6 +9,7 @@ import type {
   TextToVideoOptions,
 } from "../../domain/types";
 import { buildSingleImageInput } from "./base-builders.util";
+import { formatImageDataUri } from "./image-helpers.util";
 
 export function buildImageToImageInput(
   base64: string,
@@ -27,12 +28,9 @@ export function buildVideoFromImageInput(
   base64: string,
   options?: VideoFromImageOptions,
 ): Record<string, unknown> {
-  const formatImage = (b64: string) =>
-    b64.startsWith("data:") ? b64 : `data:image/jpeg;base64,${b64}`;
-
   return {
     prompt: options?.prompt || "Generate natural motion video",
-    image_url: formatImage(base64),
+    image_url: formatImageDataUri(base64),
     enable_safety_checker: false,
     ...(options?.duration && { duration: options.duration }),
     ...(options?.resolution && { resolution: options.resolution }),

@@ -36,6 +36,7 @@ export interface FalErrorMessages {
   timeout?: string;
   api_error?: string;
   validation?: string;
+  image_too_small?: string;
   content_policy?: string;
   rate_limit?: string;
   authentication?: string;

@@ -55,7 +55,7 @@ export function buildImageFeatureInput(
     case "anime-selfie":
       return buildKontextStyleTransferInput(imageBase64, {
         prompt: prompt || (options?.prompt as string) || DEFAULT_ANIME_SELFIE_PROMPT,
-        guidance_scale: (options?.guidance_scale as number) ?? 4.0,
+        guidance_scale: options?.guidance_scale as number | undefined,
       });
 
     default:
