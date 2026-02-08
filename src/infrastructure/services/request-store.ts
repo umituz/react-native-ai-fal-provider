@@ -3,8 +3,6 @@
  * Survives hot reloads for React Native development
  */
 
-declare const __DEV__: boolean | undefined;
-
 export interface ActiveRequest<T = unknown> {
   promise: Promise<T>;
   abortController: AbortController;
@@ -12,9 +10,6 @@ export interface ActiveRequest<T = unknown> {
 
 const STORE_KEY = "__FAL_PROVIDER_REQUESTS__";
 type RequestStore = Map<string, ActiveRequest>;
-
-// Counter for generating unique request IDs
-let requestCounter = 0;
 
 export function getRequestStore(): RequestStore {
   if (!(globalThis as Record<string, unknown>)[STORE_KEY]) {
@@ -27,18 +22,20 @@ export function getRequestStore(): RequestStore {
  * Create a collision-resistant request key using combination of:
  * - Model name
  * - Input hash (for quick comparison)
- * - Unique counter (guarantees uniqueness)
+ * - Unique ID (guarantees uniqueness)
  */
 export function createRequestKey(model: string, input: Record<string, unknown>): string {
   const inputStr = JSON.stringify(input, Object.keys(input).sort());
-  // Use DJB2 hash for input fingerprinting (faster than crypto for dedup check)
+  // Use DJB2 hash for input fingerprinting
   let hash = 0;
   for (let i = 0; i < inputStr.length; i++) {
     const char = inputStr.charCodeAt(i);
     hash = ((hash << 5) - hash + char) | 0;
   }
-  // Add counter to guarantee uniqueness even with hash collisions
-  const uniqueId = `${requestCounter++}`;
+  // Use crypto.randomUUID() for guaranteed uniqueness without race conditions
+  const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return `${model}:${hash.toString(36)}:${uniqueId}`;
 }
 
@@ -56,10 +53,7 @@ export function removeRequest(key: string): void {
 
 export function cancelAllRequests(): void {
   const store = getRequestStore();
-  store.forEach((req, key) => {
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log(`[RequestStore] Cancelling: ${key}`);
-    }
+  store.forEach((req) => {
     req.abortController.abort();
   });
   store.clear();
@@ -81,7 +75,7 @@ export function cleanupRequestStore(_maxAge: number = 300000): void {
 
   // Requests are automatically removed when they complete (via finally block)
   // This function exists for future enhancements like time-based cleanup
-  if (store.size > 50 && typeof __DEV__ !== "undefined" && __DEV__) {
-    console.warn(`[RequestStore] Large request store size: ${store.size}. Consider investigating potential leaks.`);
+  if (store.size > 50) {
+    // Store size exceeds threshold - indicates potential memory leak
   }
 }

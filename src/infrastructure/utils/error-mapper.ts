@@ -42,10 +42,3 @@ export function mapFalError(error: unknown): FalErrorInfo {
 export function isFalErrorRetryable(error: unknown): boolean {
   return categorizeFalError(error).retryable;
 }
-
-// Backward compatibility
-export const falErrorMapper = {
-  mapToErrorInfo: mapFalError,
-  isRetryable: isFalErrorRetryable,
-  getErrorType: (error: unknown) => categorizeFalError(error).type,
-};

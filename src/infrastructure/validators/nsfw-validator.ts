@@ -5,8 +5,6 @@
 
 import { NSFWContentError } from "../services/nsfw-content-error";
 
-declare const __DEV__: boolean | undefined;
-
 /**
  * Check if value indicates NSFW content
  */
@@ -33,9 +31,6 @@ export function validateNSFWContent(result: Record<string, unknown>): void {
   if (nsfwConcepts && Array.isArray(nsfwConcepts)) {
     const hasNSFW = nsfwConcepts.some((value) => value === true);
     if (hasNSFW) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[FalProvider] NSFW content detected (has_nsfw_concepts), rejecting result");
-      }
       throw new NSFWContentError();
     }
   }
@@ -43,27 +38,18 @@ export function validateNSFWContent(result: Record<string, unknown>): void {
   // Format 2: nsfw_detected boolean
   const nsfwDetected = result?.nsfw_detected;
   if (nsfwDetected !== undefined && isNSFWIndicator(nsfwDetected)) {
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] NSFW content detected (nsfw_detected), rejecting result");
-    }
     throw new NSFWContentError();
   }
 
   // Format 3: is_nsfw boolean
   const isNsfw = result?.is_nsfw;
   if (isNsfw !== undefined && isNSFWIndicator(isNsfw)) {
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] NSFW content detected (is_nsfw), rejecting result");
-    }
     throw new NSFWContentError();
   }
 
   // Format 4: nsfw_score number (> 0.5 threshold)
   const nsfwScore = result?.nsfw_score as number | undefined;
   if (typeof nsfwScore === "number" && nsfwScore > 0.5) {
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] NSFW content detected (nsfw_score: " + nsfwScore + "), rejecting result");
-    }
     throw new NSFWContentError();
   }
 
@@ -72,9 +58,6 @@ export function validateNSFWContent(result: Record<string, unknown>): void {
   if (policyViolation && typeof policyViolation === "object") {
     const type = (policyViolation.type || "").toLowerCase();
     if (type.includes("nsfw") || type.includes("adult") || type.includes("explicit")) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[FalProvider] Content policy violation detected:", policyViolation);
-      }
       throw new NSFWContentError();
     }
   }

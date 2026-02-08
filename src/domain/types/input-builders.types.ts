@@ -55,5 +55,5 @@ export interface TextToVideoOptions {
 }
 
 export interface FaceSwapOptions {
-  // No additional options
+  readonly enhanceFaces?: boolean;
 }

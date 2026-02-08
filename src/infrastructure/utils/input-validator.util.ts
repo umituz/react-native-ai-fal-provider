@@ -5,8 +5,6 @@
 
 import { isValidModelId, isValidPrompt } from "./type-guards.util";
 
-declare const __DEV__: boolean | undefined;
-
 export interface ValidationError {
   field: string;
   message: string;
@@ -75,18 +73,26 @@ export function validateInput(
 
   for (const field of imageFields) {
     const value = input[field];
-    if (value !== undefined && typeof value !== "string") {
-      errors.push({
-        field,
-        message: `${field} must be a string`,
-      });
+    if (value !== undefined) {
+      if (typeof value !== "string") {
+        errors.push({
+          field,
+          message: `${field} must be a string`,
+        });
+      } else if (value.length > 0) {
+        const isValidUrl = value.startsWith('http://') || value.startsWith('https://');
+        const isValidBase64 = value.startsWith('data:image/');
+        if (!isValidUrl && !isValidBase64) {
+          errors.push({
+            field,
+            message: `${field} must be a valid URL or base64 data URI`,
+          });
+        }
+      }
     }
   }
 
   if (errors.length > 0) {
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.warn("[InputValidator] Validation errors:", errors);
-    }
     throw new InputValidationError(errors);
   }
 }

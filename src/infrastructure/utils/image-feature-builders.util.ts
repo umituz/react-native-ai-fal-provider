@@ -36,11 +36,12 @@ export function buildPhotoRestoreInput(
 export function buildFaceSwapInput(
   sourceBase64: string,
   targetBase64: string,
-  _options?: FaceSwapOptions,
+  options?: FaceSwapOptions,
 ): Record<string, unknown> {
   return {
     base_image_url: formatImageDataUri(sourceBase64),
     swap_image_url: formatImageDataUri(targetBase64),
+    ...(options?.enhanceFaces !== undefined && { enhance_faces: options.enhanceFaces }),
   };
 }
 

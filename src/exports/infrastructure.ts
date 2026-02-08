@@ -14,7 +14,6 @@ export type { FalProviderType } from "../infrastructure/services";
 
 export {
   categorizeFalError,
-  falErrorMapper,
   mapFalError,
   isFalErrorRetryable,
   buildSingleImageInput,

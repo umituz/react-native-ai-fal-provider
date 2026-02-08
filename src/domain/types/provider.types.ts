@@ -93,6 +93,7 @@ export interface SubscribeOptions<T = unknown> {
 
 export interface RunOptions {
   onProgress?: (progress: ProviderProgressInfo) => void;
+  signal?: AbortSignal;
 }
 
 // =============================================================================

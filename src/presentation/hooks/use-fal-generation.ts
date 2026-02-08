@@ -52,11 +52,9 @@ export function useFalGeneration<T = unknown>(
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
           timeoutMs: options?.timeoutMs,
           onQueueUpdate: (status) => {
-            // Update requestId ref when we receive it from status
             if (status.requestId) {
               currentRequestIdRef.current = status.requestId;
             }
-            // Map JobStatus to FalQueueStatus for backward compatibility
             options?.onProgress?.({
               status: status.status,
               requestId: status.requestId ?? currentRequestIdRef.current ?? "",
@@ -95,9 +93,6 @@ export function useFalGeneration<T = unknown>(
     if (falProvider.hasRunningRequest()) {
       setIsCancelling(true);
       falProvider.cancelCurrentRequest();
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log("[useFalGeneration] Request cancelled");
-      }
     }
   }, []);
 

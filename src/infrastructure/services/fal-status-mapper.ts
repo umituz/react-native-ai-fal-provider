@@ -24,13 +24,14 @@ export function mapFalStatusToJobStatus(status: FalQueueStatus): JobStatus {
 
   return {
     status: mappedStatus,
-    logs: status.logs?.map((log: FalLogEntry) => ({
-      message: log.message,
-      level: log.level ?? "info",
-      timestamp: log.timestamp ?? new Date().toISOString(),
-    })) ?? [],
+    logs: Array.isArray(status.logs)
+      ? status.logs.map((log: FalLogEntry) => ({
+          message: log.message,
+          level: log.level ?? "info",
+          timestamp: log.timestamp ?? new Date().toISOString(),
+        }))
+      : [],
     queuePosition: status.queuePosition ?? undefined,
-    // Preserve requestId from FalQueueStatus for use in hooks
     requestId: status.requestId,
   };
 }

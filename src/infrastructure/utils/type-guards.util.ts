@@ -92,9 +92,10 @@ export function isValidModelId(value: unknown): boolean {
     return false;
   }
 
-  // FAL model IDs typically follow the pattern: "owner/model-name" or "owner/model/version"
-  const modelIdPattern = /^[a-z0-9-]+\/[a-z0-9-]+(\/[a-z0-9.]+)?$/;
-  return modelIdPattern.test(value);
+  // FAL model IDs follow pattern: "owner/model-name" or "owner/model/version"
+  // Allow uppercase, dots, underscores, hyphens
+  const modelIdPattern = /^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+(\/[a-zA-Z0-9-_.]+)?$/;
+  return modelIdPattern.test(value) && value.length >= 3;
 }
 
 /**

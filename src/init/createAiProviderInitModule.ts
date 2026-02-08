@@ -5,8 +5,6 @@
 
 import { falProvider } from '../infrastructure/services';
 
-declare const __DEV__: boolean;
-
 /**
  * InitModule interface (from @umituz/react-native-design-system)
  */
@@ -92,30 +90,18 @@ export function createAiProviderInitModule(
         const apiKey = getApiKey();
 
         if (!apiKey) {
-          if (typeof __DEV__ !== 'undefined' && __DEV__) {
-            console.log('[createAiProviderInitModule] No API key - skipping');
-          }
-          return Promise.resolve(true); // Not an error, just skip
+          return Promise.resolve(false);
         }
 
-        // Initialize FAL provider
         falProvider.initialize({
           apiKey,
           videoFeatureModels,
           imageFeatureModels,
         });
 
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.log('[createAiProviderInitModule] FAL provider initialized');
-        }
-
         return Promise.resolve(true);
       } catch (error) {
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          console.error('[createAiProviderInitModule] Error:', error);
-        }
-        // Continue on error - AI provider is not critical
-        return Promise.resolve(true);
+        return Promise.resolve(false);
       }
     },
   };

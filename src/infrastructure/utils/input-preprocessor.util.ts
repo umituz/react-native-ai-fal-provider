@@ -5,8 +5,6 @@
 
 import { uploadToFalStorage } from "./fal-storage.util";
 
-declare const __DEV__: boolean | undefined;
-
 const IMAGE_URL_KEYS = [
   "image_url",
   "second_image_url",
@@ -37,23 +35,11 @@ export async function preprocessInput(
   for (const key of IMAGE_URL_KEYS) {
     const value = result[key];
     if (isBase64DataUri(value)) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log(`[FalPreprocessor] Uploading ${key} to storage...`);
-      }
-
       const uploadPromise = uploadToFalStorage(value)
         .then((url) => {
           result[key] = url;
-          if (typeof __DEV__ !== "undefined" && __DEV__) {
-            console.log(`[FalPreprocessor] ${key} uploaded`, {
-              url: url.slice(0, 50) + "...",
-            });
-          }
         })
         .catch((error) => {
-          if (typeof __DEV__ !== "undefined" && __DEV__) {
-            console.error(`[FalPreprocessor] Failed to upload ${key}:`, error);
-          }
           throw new Error(`Failed to upload ${key}: ${error instanceof Error ? error.message : "Unknown error"}`);
         });
 
@@ -62,52 +48,36 @@ export async function preprocessInput(
   }
 
   // Handle image_urls array (for multi-person generation)
-  if (Array.isArray(result.image_urls)) {
+  if (Array.isArray(result.image_urls) && result.image_urls.length > 0) {
     const imageUrls = result.image_urls as unknown[];
-    // Pre-initialize array with correct length to avoid sparse array
-    const processedUrls: string[] = new Array(imageUrls.length).fill("") as string[];
+    const processedUrls: string[] = [];
 
     for (let i = 0; i < imageUrls.length; i++) {
       const imageUrl = imageUrls[i];
       if (isBase64DataUri(imageUrl)) {
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log(`[FalPreprocessor] Uploading image_urls[${i}] to storage...`);
-        }
-
-        // Capture index in closure to ensure correct assignment
         const index = i;
         const uploadPromise = uploadToFalStorage(imageUrl)
           .then((url) => {
             processedUrls[index] = url;
-            if (typeof __DEV__ !== "undefined" && __DEV__) {
-              console.log(`[FalPreprocessor] image_urls[${index}] uploaded`, {
-                url: url.slice(0, 50) + "...",
-              });
-            }
           })
           .catch((error) => {
-            if (typeof __DEV__ !== "undefined" && __DEV__) {
-              console.error(`[FalPreprocessor] Failed to upload image_urls[${index}]:`, error);
-            }
             throw new Error(`Failed to upload image_urls[${index}]: ${error instanceof Error ? error.message : "Unknown error"}`);
           });
 
         uploadPromises.push(uploadPromise);
       } else if (typeof imageUrl === "string") {
         processedUrls[i] = imageUrl;
+      } else {
+        processedUrls[i] = "";
       }
     }
 
-    // Always set processed URLs after all uploads complete
     result.image_urls = processedUrls;
   }
 
   // Wait for ALL uploads to complete (both individual keys and array)
   if (uploadPromises.length > 0) {
     await Promise.all(uploadPromises);
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log(`[FalPreprocessor] All images uploaded (${uploadPromises.length})`);
-    }
   }
 
   return result;

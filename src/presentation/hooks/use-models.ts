@@ -19,7 +19,7 @@ import type {
   UseModelsReturn,
 } from "../../domain/types/model-selection.types";
 
-declare const __DEV__: boolean;
+export type { UseModelsReturn } from "../../domain/types/model-selection.types";
 
 export interface UseModelsProps {
   /** Model type to fetch */
@@ -56,11 +56,6 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
       setSelectedModel(initial);
     }
 
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      // eslint-disable-next-line no-console
-      console.log(`[useModels] Loaded ${fetchedModels.length} ${type} models`);
-    }
-
     setIsLoading(false);
   }, [type, config?.initialModelId, defaultModelId]);
 
@@ -73,11 +68,6 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
       const model = models.find((m) => m.id === modelId);
       if (model) {
         setSelectedModel(model);
-
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          // eslint-disable-next-line no-console
-          console.log(`[useModels] Selected: ${model.name} (${model.id})`);
-        }
       }
     },
     [models],

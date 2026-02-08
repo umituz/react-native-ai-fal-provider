@@ -7,11 +7,7 @@ import { fal } from "@fal-ai/client";
 import {
   base64ToTempFile,
   deleteTempFile,
-  getFileSize,
-  detectMimeType,
 } from "@umituz/react-native-design-system/filesystem";
-
-declare const __DEV__: boolean | undefined;
 
 /**
  * Upload base64 image to FAL storage
@@ -20,30 +16,22 @@ declare const __DEV__: boolean | undefined;
 export async function uploadToFalStorage(base64: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
   const tempUri = (await base64ToTempFile(base64));
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  const fileSize = getFileSize(tempUri);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  const mimeType = detectMimeType(base64);
 
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.log("[FalStorage] Uploading image", {
-      size: `${(fileSize / 1024).toFixed(1)}KB`,
-      type: mimeType,
-    });
+  try {
+    const response = await fetch(tempUri);
+    const blob = await response.blob();
+    const url = await fal.storage.upload(blob);
+    return url;
+  } finally {
+    if (tempUri) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+        await deleteTempFile(tempUri);
+      } catch {
+        // Silently ignore cleanup failures
+      }
+    }
   }
-
-  const response = await fetch(tempUri);
-  const blob = await response.blob();
-  const url = await fal.storage.upload(blob);
-
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  await deleteTempFile(tempUri);
-
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.log("[FalStorage] Upload complete", { url: url.slice(0, 60) + "..." });
-  }
-
-  return url;
 }
 
 /**

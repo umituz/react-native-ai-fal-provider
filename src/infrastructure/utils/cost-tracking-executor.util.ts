@@ -5,8 +5,6 @@
 
 import type { CostTracker } from "./cost-tracker";
 
-declare const __DEV__: boolean | undefined;
-
 interface ExecuteWithCostTrackingOptions<T> {
   tracker: CostTracker | null;
   model: string;
@@ -37,9 +35,8 @@ export async function executeWithCostTracking<T>(
       const requestId = getRequestId?.(result);
       tracker.completeOperation(operationId, model, operation, requestId);
     } catch (costError) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.warn("[CostTracking] Failed:", costError);
-      }
+      // Cost tracking failure shouldn't break the operation
+      // Log for debugging but don't throw
     }
 
     return result;
@@ -47,7 +44,7 @@ export async function executeWithCostTracking<T>(
     try {
       tracker.failOperation(operationId);
     } catch {
-      // Silently ignore cost tracking errors on failure path
+      // Cost tracking cleanup failure on error path - ignore
     }
     throw error;
   }

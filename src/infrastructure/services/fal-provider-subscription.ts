@@ -11,8 +11,6 @@ import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { validateNSFWContent } from "../validators/nsfw-validator";
 import { NSFWContentError } from "./nsfw-content-error";
 
-declare const __DEV__: boolean | undefined;
-
 interface FalApiErrorDetail {
   msg?: string;
   type?: string;
@@ -59,22 +57,16 @@ export async function handleFalSubscription<T = unknown>(
   signal?: AbortSignal
 ): Promise<{ result: T; requestId: string | null }> {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
+
+  if (timeoutMs <= 0 || timeoutMs > 3600000) {
+    throw new Error(`Invalid timeout: ${timeoutMs}ms. Must be between 1 and 3600000ms (1 hour)`);
+  }
+
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let currentRequestId: string | null = null;
   let abortHandler: (() => void) | null = null;
+  let listenerAdded = false;
 
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.log("[FalProvider] Subscribe started:", {
-      model,
-      timeoutMs,
-      inputKeys: Object.keys(input),
-      hasImageUrl: !!input.image_url,
-      hasPrompt: !!input.prompt,
-      promptPreview: input.prompt ? String(input.prompt).substring(0, 50) + "..." : "N/A",
-    });
-  }
-
-  // Check if already aborted before starting
   if (signal?.aborted) {
     throw new Error("Request cancelled by user");
   }
@@ -82,7 +74,6 @@ export async function handleFalSubscription<T = unknown>(
   let lastStatus = "";
 
   try {
-    // Create promises array conditionally to avoid unnecessary abort promise creation
     const promises: Promise<unknown>[] = [
       fal.subscribe(model, {
         input,
@@ -91,14 +82,13 @@ export async function handleFalSubscription<T = unknown>(
         onQueueUpdate: (update: { status: string; logs?: unknown[]; request_id?: string }) => {
           currentRequestId = update.request_id ?? currentRequestId;
           const jobStatus = mapFalStatusToJobStatus({
-            ...update as unknown as FalQueueStatus,
+            status: update.status as FalQueueStatus["status"],
             requestId: currentRequestId ?? "",
+            logs: update.logs as FalQueueStatus["logs"],
+            queuePosition: undefined,
           });
           if (jobStatus.status !== lastStatus) {
             lastStatus = jobStatus.status;
-            if (typeof __DEV__ !== "undefined" && __DEV__) {
-              console.log("[FalProvider] Status:", jobStatus.status, "RequestId:", currentRequestId);
-            }
           }
           options?.onQueueUpdate?.(jobStatus);
         },
@@ -110,55 +100,33 @@ export async function handleFalSubscription<T = unknown>(
       }),
     ];
 
-    // Add abort promise only if signal is provided and not already aborted
     if (signal && !signal.aborted) {
       const abortPromise = new Promise<never>((_, reject) => {
         abortHandler = () => {
           reject(new Error("Request cancelled by user"));
         };
         signal.addEventListener("abort", abortHandler);
+        listenerAdded = true;
       });
       promises.push(abortPromise);
     }
 
     const result = await Promise.race(promises);
 
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] Subscribe completed:", {
-        model,
-        requestId: currentRequestId,
-        resultKeys: result ? Object.keys(result as object) : "null",
-        hasVideo: !!(result as Record<string, unknown>)?.video,
-        hasOutput: !!(result as Record<string, unknown>)?.output,
-        hasData: !!(result as Record<string, unknown>)?.data,
-      });
-      // Log full result structure for debugging
-      console.log("[FalProvider] Result structure:", JSON.stringify(result, null, 2).substring(0, 1000));
-    }
-
     validateNSFWContent(result as Record<string, unknown>);
 
     options?.onResult?.(result as T);
     return { result: result as T, requestId: currentRequestId };
   } catch (error) {
-    // Preserve NSFWContentError type
     if (error instanceof NSFWContentError) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.error("[FalProvider] NSFW content detected");
-      }
       throw error;
     }
 
-    // Parse FAL error and throw with user-friendly message
     const userMessage = parseFalError(error);
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.error("[FalProvider] Error:", userMessage);
-    }
     throw new Error(userMessage);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
-    // Clean up abort listener to prevent memory leak (only if it was added)
-    if (abortHandler && signal && !signal.aborted) {
+    if (listenerAdded && abortHandler && signal) {
       signal.removeEventListener("abort", abortHandler);
     }
   }
@@ -174,36 +142,19 @@ export async function handleFalRun<T = unknown>(
 ): Promise<T> {
   options?.onProgress?.({ progress: 10, status: "IN_PROGRESS" as const });
 
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.log("[FalProvider] run() model:", model, "inputKeys:", Object.keys(input));
-  }
-
   try {
     const result = await fal.run(model, { input });
-
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] run() raw result:", JSON.stringify(result, null, 2));
-      console.log("[FalProvider] run() result type:", typeof result);
-      console.log("[FalProvider] run() result keys:", result ? Object.keys(result as object) : "null");
-    }
 
     validateNSFWContent(result as Record<string, unknown>);
 
     options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
     return result as T;
   } catch (error) {
-    // Preserve NSFWContentError type
     if (error instanceof NSFWContentError) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.error("[FalProvider] run() NSFW content detected");
-      }
       throw error;
     }
 
     const userMessage = parseFalError(error);
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.error("[FalProvider] run() Error:", userMessage);
-    }
     throw new Error(userMessage);
   }
 }

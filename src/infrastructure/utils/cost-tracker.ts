@@ -10,8 +10,6 @@ import type {
 } from "../../domain/entities/cost-tracking.types";
 import { findModelById } from "../../domain/constants/default-models.constants";
 
-declare const __DEV__: boolean | undefined;
-
 interface CostSummary {
   totalEstimatedCost: number;
   totalActualCost: number;
@@ -69,14 +67,8 @@ export class CostTracker {
           currency: this.config.currency,
         };
       }
-
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.warn("[CostTracker] No pricing found for model:", modelId);
-      }
     } catch (error) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.warn("[CostTracker] Error finding model:", modelId, error);
-      }
+      // Silently return default cost info on error
     }
 
     return {
@@ -164,6 +156,7 @@ export class CostTracker {
   clearHistory(): void {
     this.costHistory = [];
     this.currentOperationCosts.clear();
+    this.operationCounter = 0;
   }
 
   getCostsByModel(modelId: string): GenerationCost[] {

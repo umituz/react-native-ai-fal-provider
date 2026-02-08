@@ -37,14 +37,10 @@ export async function submitJob(model: string, input: Record<string, unknown>): 
 export async function getJobStatus(model: string, requestId: string): Promise<JobStatus> {
   const status = await fal.queue.status(model, { requestId, logs: true });
 
-  // Validate the response structure before mapping
   if (!isValidFalQueueStatus(status)) {
-    // Fallback to default status if validation fails
-    return {
-      status: "IN_PROGRESS",
-      logs: [],
-      queuePosition: undefined,
-    };
+    throw new Error(
+      `Invalid FAL queue status response for model ${model}, requestId ${requestId}`
+    );
   }
 
   return mapFalStatusToJobStatus(status);
@@ -52,5 +48,12 @@ export async function getJobStatus(model: string, requestId: string): Promise<Jo
 
 export async function getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
   const result = await fal.queue.result(model, { requestId });
+
+  if (!result || typeof result !== 'object') {
+    throw new Error(
+      `Invalid FAL queue result for model ${model}, requestId ${requestId}`
+    );
+  }
+
   return result.data as T;
 }

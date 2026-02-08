@@ -21,8 +21,6 @@ import * as queueOps from "./fal-queue-operations";
 import * as featureModels from "./fal-feature-models";
 import { validateInput } from "../utils/input-validator.util";
 
-declare const __DEV__: boolean | undefined;
-
 export class FalProvider implements IAIProvider {
   readonly providerId = "fal";
   readonly providerName = "FAL AI";
@@ -46,9 +44,6 @@ export class FalProvider implements IAIProvider {
       },
     });
     this.initialized = true;
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log("[FalProvider] Initialized");
-    }
   }
 
   enableCostTracking(config?: CostTrackerConfig): void {
@@ -116,9 +111,6 @@ export class FalProvider implements IAIProvider {
 
     const existing = getExistingRequest<T>(key);
     if (existing) {
-      if (typeof __DEV__ !== "undefined" && __DEV__) {
-        console.log(`[FalProvider] Dedup: returning existing promise for ${model}`);
-      }
       return existing.promise;
     }
 
@@ -141,6 +133,11 @@ export class FalProvider implements IAIProvider {
     this.validateInit();
     validateInput(model, input);
     const processedInput = await preprocessInput(input);
+
+    const signal = options?.signal;
+    if (signal?.aborted) {
+      throw new Error("Request cancelled by user");
+    }
 
     return executeWithCostTracking({
       tracker: this.costTracker,

@@ -36,7 +36,10 @@ export function buildVideoFeatureInput(
   const effectivePrompt = prompt || DEFAULT_VIDEO_PROMPTS[feature] || "Generate video";
 
   if (isImageRequiredFeature(feature)) {
-    return buildVideoFromImageInput(sourceImageBase64 || "", {
+    if (!sourceImageBase64 || sourceImageBase64.trim().length === 0) {
+      throw new Error(`${feature} requires a source image`);
+    }
+    return buildVideoFromImageInput(sourceImageBase64, {
       prompt: effectivePrompt,
       duration: options?.duration as number | undefined,
       resolution: options?.resolution as string | undefined,
