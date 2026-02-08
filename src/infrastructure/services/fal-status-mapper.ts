@@ -30,5 +30,7 @@ export function mapFalStatusToJobStatus(status: FalQueueStatus): JobStatus {
       timestamp: log.timestamp ?? new Date().toISOString(),
     })) ?? [],
     queuePosition: status.queuePosition ?? undefined,
+    // Preserve requestId from FalQueueStatus for use in hooks
+    requestId: status.requestId,
   };
 }

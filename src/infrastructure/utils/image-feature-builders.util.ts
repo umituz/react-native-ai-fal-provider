@@ -46,13 +46,18 @@ export function buildFaceSwapInput(
 
 export function buildRemoveBackgroundInput(
   base64: string,
-  _options?: RemoveBackgroundOptions,
+  options?: RemoveBackgroundOptions & {
+    model?: string;
+    operating_resolution?: string;
+    output_format?: string;
+    refine_foreground?: boolean;
+  },
 ): Record<string, unknown> {
   return buildSingleImageInput(base64, {
-    model: "General Use (Light)",
-    operating_resolution: "1024x1024",
-    output_format: "png",
-    refine_foreground: true,
+    model: options?.model ?? "General Use (Light)",
+    operating_resolution: options?.operating_resolution ?? "1024x1024",
+    output_format: options?.output_format ?? "png",
+    refine_foreground: options?.refine_foreground ?? true,
   });
 }
 

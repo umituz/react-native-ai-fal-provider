@@ -65,12 +65,16 @@ export function isValidBase64Image(value: unknown): boolean {
 
   // Check data URI prefix
   if (value.startsWith("data:image/")) {
-    return value.includes("base64,");
+    const base64Part = value.split("base64,")[1];
+    if (!base64Part) return false;
+    // Base64 should be at least 100 chars (meaningful image data)
+    return base64Part.length >= 100;
   }
 
-  // Check if it's a valid base64 string
+  // Check if it's a valid base64 string with minimum length
   const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
-  return base64Pattern.test(value) && value.length > 0;
+  // Minimum 100 characters for meaningful base64 image data
+  return base64Pattern.test(value) && value.length >= 100;
 }
 
 /**

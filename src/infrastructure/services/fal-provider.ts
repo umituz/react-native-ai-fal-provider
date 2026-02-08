@@ -19,6 +19,7 @@ import {
 } from "./request-store";
 import * as queueOps from "./fal-queue-operations";
 import * as featureModels from "./fal-feature-models";
+import { validateInput } from "../utils/input-validator.util";
 
 declare const __DEV__: boolean | undefined;
 
@@ -86,16 +87,19 @@ export class FalProvider implements IAIProvider {
 
   async submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
     this.validateInit();
+    validateInput(model, input);
     return queueOps.submitJob(model, input);
   }
 
   async getJobStatus(model: string, requestId: string): Promise<JobStatus> {
     this.validateInit();
+    validateInput(model, {}); // Validate model ID only
     return queueOps.getJobStatus(model, requestId);
   }
 
   async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
     this.validateInit();
+    validateInput(model, {}); // Validate model ID only
     return queueOps.getJobResult<T>(model, requestId);
   }
 
@@ -105,6 +109,7 @@ export class FalProvider implements IAIProvider {
     options?: SubscribeOptions<T>,
   ): Promise<T> {
     this.validateInit();
+    validateInput(model, input);
 
     const processedInput = await preprocessInput(input);
     const key = createRequestKey(model, processedInput);
@@ -134,6 +139,7 @@ export class FalProvider implements IAIProvider {
 
   async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
     this.validateInit();
+    validateInput(model, input);
     const processedInput = await preprocessInput(input);
 
     return executeWithCostTracking({

@@ -28,6 +28,8 @@ export interface FalErrorInfo {
   readonly messageKey: string;
   readonly retryable: boolean;
   readonly originalError: string;
+  readonly originalErrorName?: string;
+  readonly stack?: string;
   readonly statusCode?: number;
 }
 

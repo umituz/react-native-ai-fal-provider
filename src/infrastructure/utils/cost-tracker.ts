@@ -23,6 +23,7 @@ export class CostTracker {
   private config: Required<CostTrackerConfig>;
   private costHistory: GenerationCost[] = [];
   private currentOperationCosts: Map<string, number> = new Map();
+  private operationCounter = 0;
 
   constructor(config?: CostTrackerConfig) {
     this.config = {
@@ -67,7 +68,8 @@ export class CostTracker {
   }
 
   startOperation(modelId: string, operation: string): string {
-    const operationId = `${Date.now()}-${operation}`;
+    // Use counter + timestamp for guaranteed unique operation IDs
+    const operationId = `${Date.now()}-${this.operationCounter++}-${operation}`;
     const estimatedCost = this.calculateEstimatedCost(modelId);
 
     this.currentOperationCosts.set(operationId, estimatedCost);

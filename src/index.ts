@@ -12,9 +12,6 @@ export * from "./exports/infrastructure";
 // Presentation Layer
 export * from "./exports/presentation";
 
-// Model Registry
-export * from "./exports/registry";
-
 // Init Module Factory
 export {
   createAiProviderInitModule,

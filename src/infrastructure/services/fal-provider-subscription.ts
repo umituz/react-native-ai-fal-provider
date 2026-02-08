@@ -9,6 +9,7 @@ import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import { DEFAULT_FAL_CONFIG } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { validateNSFWContent } from "../validators/nsfw-validator";
+import { NSFWContentError } from "./nsfw-content-error";
 
 declare const __DEV__: boolean | undefined;
 
@@ -81,7 +82,8 @@ export async function handleFalSubscription<T = unknown>(
   let lastStatus = "";
 
   try {
-    const result = await Promise.race([
+    // Create promises array conditionally to avoid unnecessary abort promise creation
+    const promises: Promise<unknown>[] = [
       fal.subscribe(model, {
         input,
         logs: false,
@@ -106,16 +108,20 @@ export async function handleFalSubscription<T = unknown>(
           reject(new Error("FAL subscription timeout"));
         }, timeoutMs);
       }),
-      // Abort promise with cleanup
-      ...(signal ? [
-        new Promise<never>((_, reject) => {
-          abortHandler = () => {
-            reject(new Error("Request cancelled by user"));
-          };
-          signal.addEventListener("abort", abortHandler);
-        }),
-      ] as const : []),
-    ]);
+    ];
+
+    // Add abort promise only if signal is provided and not already aborted
+    if (signal && !signal.aborted) {
+      const abortPromise = new Promise<never>((_, reject) => {
+        abortHandler = () => {
+          reject(new Error("Request cancelled by user"));
+        };
+        signal.addEventListener("abort", abortHandler);
+      });
+      promises.push(abortPromise);
+    }
+
+    const result = await Promise.race(promises);
 
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.log("[FalProvider] Subscribe completed:", {
@@ -135,6 +141,14 @@ export async function handleFalSubscription<T = unknown>(
     options?.onResult?.(result as T);
     return { result: result as T, requestId: currentRequestId };
   } catch (error) {
+    // Preserve NSFWContentError type
+    if (error instanceof NSFWContentError) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.error("[FalProvider] NSFW content detected");
+      }
+      throw error;
+    }
+
     // Parse FAL error and throw with user-friendly message
     const userMessage = parseFalError(error);
     if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -143,8 +157,8 @@ export async function handleFalSubscription<T = unknown>(
     throw new Error(userMessage);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
-    // Clean up abort listener to prevent memory leak
-    if (signal && abortHandler) {
+    // Clean up abort listener to prevent memory leak (only if it was added)
+    if (abortHandler && signal && !signal.aborted) {
       signal.removeEventListener("abort", abortHandler);
     }
   }
@@ -178,6 +192,14 @@ export async function handleFalRun<T = unknown>(
     options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
     return result as T;
   } catch (error) {
+    // Preserve NSFWContentError type
+    if (error instanceof NSFWContentError) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.error("[FalProvider] run() NSFW content detected");
+      }
+      throw error;
+    }
+
     const userMessage = parseFalError(error);
     if (typeof __DEV__ !== "undefined" && __DEV__) {
       console.error("[FalProvider] run() Error:", userMessage);

@@ -14,14 +14,28 @@ function extractStatusCode(errorString: string): number | undefined {
 
 export function mapFalError(error: unknown): FalErrorInfo {
   const category = categorizeFalError(error);
-  const originalError = error instanceof Error ? error.message : String(error);
+
+  // Preserve full error information including stack trace
+  if (error instanceof Error) {
+    return {
+      type: category.type,
+      messageKey: `fal.errors.${category.messageKey}`,
+      retryable: category.retryable,
+      originalError: error.message,
+      originalErrorName: error.name,
+      stack: error.stack,
+      statusCode: extractStatusCode(error.message),
+    };
+  }
+
+  const errorString = String(error);
 
   return {
     type: category.type,
     messageKey: `fal.errors.${category.messageKey}`,
     retryable: category.retryable,
-    originalError,
-    statusCode: extractStatusCode(originalError),
+    originalError: errorString,
+    statusCode: extractStatusCode(errorString),
   };
 }
 

@@ -52,13 +52,14 @@ export function useFalGeneration<T = unknown>(
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
           timeoutMs: options?.timeoutMs,
           onQueueUpdate: (status) => {
-            // Note: requestId is tracked internally by falProvider subscribe
-            // and exposed via the requestId ref, not from status object
-            const currentRequestId = currentRequestIdRef.current ?? "";
+            // Update requestId ref when we receive it from status
+            if (status.requestId) {
+              currentRequestIdRef.current = status.requestId;
+            }
             // Map JobStatus to FalQueueStatus for backward compatibility
             options?.onProgress?.({
               status: status.status,
-              requestId: currentRequestId,
+              requestId: status.requestId ?? currentRequestIdRef.current ?? "",
               logs: status.logs?.map((log: FalLogEntry) => ({
                 message: log.message,
                 level: log.level,

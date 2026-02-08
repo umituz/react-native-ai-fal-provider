@@ -26,12 +26,15 @@ export function buildImageToImageInput(
 
 export function buildVideoFromImageInput(
   base64: string,
-  options?: VideoFromImageOptions,
+  options?: VideoFromImageOptions & {
+    enable_safety_checker?: boolean;
+    default_prompt?: string;
+  },
 ): Record<string, unknown> {
   return {
-    prompt: options?.prompt || "Generate natural motion video",
+    prompt: options?.prompt || options?.default_prompt || "Generate natural motion video",
     image_url: formatImageDataUri(base64),
-    enable_safety_checker: false,
+    enable_safety_checker: options?.enable_safety_checker ?? false,
     ...(options?.duration && { duration: options.duration }),
     ...(options?.resolution && { resolution: options.resolution }),
   };

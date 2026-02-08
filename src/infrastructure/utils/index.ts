@@ -53,12 +53,6 @@ export {
 } from "./prompt-helpers.util";
 
 export {
-  calculateTimeoutWithJitter,
-  debounce,
-  throttle,
-} from "./timing-helpers.util";
-
-export {
   formatCreditCost,
   buildErrorMessage,
   isDefined,
@@ -102,3 +96,10 @@ export { CostTracker } from "./cost-tracker";
 export { executeWithCostTracking } from "./cost-tracking-executor.util";
 
 export { preprocessInput } from "./input-preprocessor.util";
+
+export {
+  validateInput,
+  type InputValidationError,
+  type ValidationError,
+} from "./input-validator.util";
+
