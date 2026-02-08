@@ -23,18 +23,6 @@ export interface AiProviderInitModuleConfig {
   getApiKey: () => string | undefined;
 
   /**
-   * Video feature models mapping
-   * Maps feature types to FAL model IDs
-   */
-  videoFeatureModels?: Record<string, string>;
-
-  /**
-   * Image feature models mapping
-   * Maps feature types to FAL model IDs
-   */
-  imageFeatureModels?: Record<string, string>;
-
-  /**
    * Whether this module is critical for app startup
    * @default false
    */
@@ -61,10 +49,6 @@ export interface AiProviderInitModuleConfig {
  *     createFirebaseInitModule(),
  *     createAiProviderInitModule({
  *       getApiKey: () => getFalApiKey(),
- *       videoFeatureModels: {
- *         "image-to-video": "fal-ai/wan-25-preview/image-to-video",
- *         "text-to-video": "fal-ai/wan-25-preview/text-to-video",
- *       },
  *     }),
  *   ],
  * });
@@ -75,8 +59,6 @@ export function createAiProviderInitModule(
 ): InitModule {
   const {
     getApiKey,
-    videoFeatureModels,
-    imageFeatureModels,
     critical = false,
     dependsOn = ['firebase'],
   } = config;
@@ -95,8 +77,6 @@ export function createAiProviderInitModule(
 
         falProvider.initialize({
           apiKey,
-          videoFeatureModels,
-          imageFeatureModels,
         });
 
         return Promise.resolve(true);

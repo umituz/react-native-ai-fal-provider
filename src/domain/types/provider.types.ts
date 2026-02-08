@@ -39,8 +39,6 @@ export interface AIProviderConfig {
   textToImageModel?: string;
   imageEditModel?: string;
   videoGenerationModel?: string;
-  videoFeatureModels?: Partial<Record<VideoFeatureType, string>>;
-  imageFeatureModels?: Partial<Record<ImageFeatureType, string>>;
 }
 
 // =============================================================================

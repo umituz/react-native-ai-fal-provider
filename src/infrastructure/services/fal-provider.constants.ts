@@ -14,17 +14,8 @@ export const DEFAULT_FAL_CONFIG = {
 } as const;
 
 export const FAL_CAPABILITIES: ProviderCapabilities = {
-  imageFeatures: [
-    "upscale",
-    "photo-restore",
-    "face-swap",
-    "anime-selfie",
-    "remove-background",
-    "remove-object",
-    "hd-touch-up",
-    "replace-background",
-  ] as const,
-  videoFeatures: ["image-to-video", "text-to-video"] as const,
+  imageFeatures: [] as const,
+  videoFeatures: [] as const,
   textToImage: true,
   textToVideo: true,
   imageToVideo: true,

@@ -11,15 +11,6 @@ export {
 export {
   buildSingleImageInput,
   buildDualImageInput,
-  buildUpscaleInput,
-  buildPhotoRestoreInput,
-  buildVideoFromImageInput,
-  buildFaceSwapInput,
-  buildImageToImageInput,
-  buildRemoveBackgroundInput,
-  buildRemoveObjectInput,
-  buildReplaceBackgroundInput,
-  buildHDTouchUpInput,
 } from "./input-builders.util";
 
 export {

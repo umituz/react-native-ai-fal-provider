@@ -6,8 +6,8 @@
 import { fal } from "@fal-ai/client";
 import type {
   IAIProvider, AIProviderConfig, JobSubmission, JobStatus, SubscribeOptions,
-  RunOptions, ImageFeatureType, VideoFeatureType, ImageFeatureInputData,
-  VideoFeatureInputData, ProviderCapabilities,
+  RunOptions, ProviderCapabilities, ImageFeatureType, VideoFeatureType,
+  ImageFeatureInputData, VideoFeatureInputData,
 } from "../../domain/types";
 import type { CostTrackerConfig } from "../../domain/entities/cost-tracking.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
@@ -18,7 +18,6 @@ import {
   removeRequest, cancelAllRequests, hasActiveRequests,
 } from "./request-store";
 import * as queueOps from "./fal-queue-operations";
-import * as featureModels from "./fal-feature-models";
 import { validateInput } from "../utils/input-validator.util";
 
 export class FalProvider implements IAIProvider {
@@ -28,13 +27,9 @@ export class FalProvider implements IAIProvider {
   private apiKey: string | null = null;
   private initialized = false;
   private costTracker: CostTracker | null = null;
-  private videoFeatureModels: Record<string, string> = {};
-  private imageFeatureModels: Record<string, string> = {};
 
   initialize(config: AIProviderConfig): void {
     this.apiKey = config.apiKey;
-    this.videoFeatureModels = config.videoFeatureModels ?? {};
-    this.imageFeatureModels = config.imageFeatureModels ?? {};
     fal.config({
       credentials: config.apiKey,
       retry: {
@@ -70,10 +65,24 @@ export class FalProvider implements IAIProvider {
     return FAL_CAPABILITIES;
   }
 
-  isFeatureSupported(feature: ImageFeatureType | VideoFeatureType): boolean {
-    const caps = this.getCapabilities();
-    return caps.imageFeatures.includes(feature as ImageFeatureType) ||
-           caps.videoFeatures.includes(feature as VideoFeatureType);
+  isFeatureSupported(_feature: ImageFeatureType | VideoFeatureType): boolean {
+    return false;
+  }
+
+  getImageFeatureModel(_feature: ImageFeatureType): string {
+    throw new Error("Feature-specific models are not supported in this provider. Use the main app's feature implementations.");
+  }
+
+  buildImageFeatureInput(_feature: ImageFeatureType, _data: ImageFeatureInputData): Record<string, unknown> {
+    throw new Error("Feature-specific input building is not supported in this provider. Use the main app's feature implementations.");
+  }
+
+  getVideoFeatureModel(_feature: VideoFeatureType): string {
+    throw new Error("Feature-specific models are not supported in this provider. Use the main app's feature implementations.");
+  }
+
+  buildVideoFeatureInput(_feature: VideoFeatureType, _data: VideoFeatureInputData): Record<string, unknown> {
+    throw new Error("Feature-specific input building is not supported in this provider. Use the main app's feature implementations.");
   }
 
   private validateInit(): void {
@@ -159,22 +168,6 @@ export class FalProvider implements IAIProvider {
 
   hasRunningRequest(): boolean {
     return hasActiveRequests();
-  }
-
-  getImageFeatureModel(feature: ImageFeatureType): string {
-    return featureModels.getImageFeatureModel(this.imageFeatureModels, feature);
-  }
-
-  buildImageFeatureInput(feature: ImageFeatureType, data: ImageFeatureInputData): Record<string, unknown> {
-    return featureModels.buildImageFeatureInput(feature, data);
-  }
-
-  getVideoFeatureModel(feature: VideoFeatureType): string {
-    return featureModels.getVideoFeatureModel(this.videoFeatureModels, feature);
-  }
-
-  buildVideoFeatureInput(feature: VideoFeatureType, data: VideoFeatureInputData): Record<string, unknown> {
-    return featureModels.buildVideoFeatureInput(feature, data);
   }
 }
 

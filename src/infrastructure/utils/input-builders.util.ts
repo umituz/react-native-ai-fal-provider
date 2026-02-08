@@ -4,5 +4,3 @@
  */
 
 export * from "./base-builders.util";
-export * from "./image-feature-builders.util";
-export * from "./video-feature-builders.util";
