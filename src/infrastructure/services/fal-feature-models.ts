@@ -10,8 +10,10 @@ import type {
 } from "../../domain/types";
 import {
   buildImageFeatureInput as buildImageFeatureInputImpl,
+} from "../builders/image-feature-builder";
+import {
   buildVideoFeatureInput as buildVideoFeatureInputImpl,
-} from "../builders";
+} from "../builders/video-feature-builder";
 
 export function getImageFeatureModel(
   imageFeatureModels: Record<string, string>,

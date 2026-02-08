@@ -6,18 +6,42 @@
 import type {
   GenerationCost,
   CostTrackerConfig,
-  CostSummary,
   ModelCostInfo,
 } from "../../domain/entities/cost-tracking.types";
 import { findModelById } from "../../domain/constants/default-models.constants";
-import {
-  calculateCostSummary,
-  filterCostsByModel,
-  filterCostsByOperation,
-  filterCostsByTimeRange,
-} from "./cost-tracker-queries";
 
 declare const __DEV__: boolean | undefined;
+
+interface CostSummary {
+  totalEstimatedCost: number;
+  totalActualCost: number;
+  currency: string;
+  operationCount: number;
+}
+
+function calculateCostSummary(costs: GenerationCost[], currency: string): CostSummary {
+  return costs.reduce(
+    (summary, cost) => ({
+      totalEstimatedCost: summary.totalEstimatedCost + cost.estimatedCost,
+      totalActualCost: summary.totalActualCost + cost.actualCost,
+      currency,
+      operationCount: summary.operationCount + 1,
+    }),
+    { totalEstimatedCost: 0, totalActualCost: 0, currency, operationCount: 0 }
+  );
+}
+
+function filterCostsByModel(costs: GenerationCost[], modelId: string): GenerationCost[] {
+  return costs.filter((cost) => cost.model === modelId);
+}
+
+function filterCostsByOperation(costs: GenerationCost[], operation: string): GenerationCost[] {
+  return costs.filter((cost) => cost.operation === operation);
+}
+
+function filterCostsByTimeRange(costs: GenerationCost[], startTime: number, endTime: number): GenerationCost[] {
+  return costs.filter((cost) => cost.timestamp >= startTime && cost.timestamp <= endTime);
+}
 
 export class CostTracker {
   private config: Required<CostTrackerConfig>;
