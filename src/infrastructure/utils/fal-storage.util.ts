@@ -19,11 +19,11 @@ declare const __DEV__: boolean | undefined;
  */
 export async function uploadToFalStorage(base64: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-  const tempUri = (await base64ToTempFile(base64)) as string;
+  const tempUri = (await base64ToTempFile(base64));
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  const fileSize = getFileSize(tempUri) as number;
+  const fileSize = getFileSize(tempUri);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-  const mimeType = detectMimeType(base64) as string;
+  const mimeType = detectMimeType(base64);
 
   if (typeof __DEV__ !== "undefined" && __DEV__) {
     console.log("[FalStorage] Uploading image", {

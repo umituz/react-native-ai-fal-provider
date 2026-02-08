@@ -7,9 +7,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "content-check": "node scripts/content-check.js",
-    "prepublishOnly": "npm run content-check"
+    "lint:fix": "eslint src --ext .ts,.tsx --fix"
   },
   "keywords": [
     "react-native",

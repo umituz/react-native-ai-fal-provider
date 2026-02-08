@@ -65,7 +65,7 @@ export async function preprocessInput(
   if (Array.isArray(result.image_urls)) {
     const imageUrls = result.image_urls as unknown[];
     // Pre-initialize array with correct length to avoid sparse array
-    const processedUrls: string[] = new Array(imageUrls.length).fill("");
+    const processedUrls: string[] = new Array(imageUrls.length).fill("") as string[];
 
     for (let i = 0; i < imageUrls.length; i++) {
       const imageUrl = imageUrls[i];
