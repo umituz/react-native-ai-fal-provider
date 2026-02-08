@@ -4,12 +4,41 @@
 
 import type { FalErrorInfo } from "../../domain/entities/error.types";
 import { categorizeFalError } from "./error-categorizer";
+import { safeJsonParseOrNull } from "./data-parsers.util";
 
 const STATUS_CODES = ["400", "401", "402", "403", "404", "422", "429", "500", "502", "503", "504"];
+
+interface FalApiErrorDetail {
+  msg?: string;
+  type?: string;
+  loc?: string[];
+}
+
+interface FalApiError {
+  body?: { detail?: FalApiErrorDetail[] } | string;
+  message?: string;
+}
 
 function extractStatusCode(errorString: string): number | undefined {
   const code = STATUS_CODES.find((c) => errorString.includes(c));
   return code ? parseInt(code, 10) : undefined;
+}
+
+/**
+ * Parse FAL API error and extract user-friendly message
+ */
+export function parseFalError(error: unknown): string {
+  const fallback = error instanceof Error ? error.message : String(error);
+
+  const falError = error as FalApiError;
+  if (!falError?.body) return fallback;
+
+  const body = typeof falError.body === "string"
+    ? safeJsonParseOrNull<{ detail?: FalApiErrorDetail[] }>(falError.body)
+    : falError.body;
+
+  const detail = body?.detail?.[0];
+  return detail?.msg ?? falError.message ?? fallback;
 }
 
 export function mapFalError(error: unknown): FalErrorInfo {

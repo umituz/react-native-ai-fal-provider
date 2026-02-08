@@ -15,6 +15,7 @@ export type { FalProviderType } from "../infrastructure/services";
 export {
   categorizeFalError,
   mapFalError,
+  parseFalError,
   isFalErrorRetryable,
   buildSingleImageInput,
   buildDualImageInput,
@@ -41,12 +42,21 @@ export {
   isImageDataUri,
   uploadToFalStorage,
   uploadMultipleToFalStorage,
-  formatCreditCost,
+  formatNumber,
+  formatCurrency,
+  formatBytes,
+  formatDuration,
+  truncateText,
   truncatePrompt,
   sanitizePrompt,
   buildErrorMessage,
   isDefined,
   removeNullish,
+  generateUniqueId,
+  debounce,
+  throttle,
+  sleep,
+  retry,
 } from "../infrastructure/utils";
 
 export {

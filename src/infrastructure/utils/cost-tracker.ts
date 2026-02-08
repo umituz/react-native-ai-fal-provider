@@ -9,6 +9,7 @@ import type {
   ModelCostInfo,
 } from "../../domain/entities/cost-tracking.types";
 import { findModelById } from "../../domain/constants/default-models.constants";
+import { filterByProperty, filterByTimeRange } from "./collection-filters.util";
 
 interface CostSummary {
   totalEstimatedCost: number;
@@ -27,18 +28,6 @@ function calculateCostSummary(costs: GenerationCost[], currency: string): CostSu
     }),
     { totalEstimatedCost: 0, totalActualCost: 0, currency, operationCount: 0 }
   );
-}
-
-function filterCostsByModel(costs: GenerationCost[], modelId: string): GenerationCost[] {
-  return costs.filter((cost) => cost.model === modelId);
-}
-
-function filterCostsByOperation(costs: GenerationCost[], operation: string): GenerationCost[] {
-  return costs.filter((cost) => cost.operation === operation);
-}
-
-function filterCostsByTimeRange(costs: GenerationCost[], startTime: number, endTime: number): GenerationCost[] {
-  return costs.filter((cost) => cost.timestamp >= startTime && cost.timestamp <= endTime);
 }
 
 export class CostTracker {
@@ -161,14 +150,14 @@ export class CostTracker {
   }
 
   getCostsByModel(modelId: string): GenerationCost[] {
-    return filterCostsByModel(this.costHistory, modelId);
+    return filterByProperty(this.costHistory, "model", modelId);
   }
 
   getCostsByOperation(operation: string): GenerationCost[] {
-    return filterCostsByOperation(this.costHistory, operation);
+    return filterByProperty(this.costHistory, "operation", operation);
   }
 
   getCostsByTimeRange(startTime: number, endTime: number): GenerationCost[] {
-    return filterCostsByTimeRange(this.costHistory, startTime, endTime);
+    return filterByTimeRange(this.costHistory, "timestamp", startTime, endTime);
   }
 }

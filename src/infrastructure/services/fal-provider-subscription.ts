@@ -10,42 +10,7 @@ import { DEFAULT_FAL_CONFIG } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { validateNSFWContent } from "../validators/nsfw-validator";
 import { NSFWContentError } from "./nsfw-content-error";
-
-interface FalApiErrorDetail {
-  msg?: string;
-  type?: string;
-  loc?: string[];
-}
-
-interface FalApiError {
-  body?: { detail?: FalApiErrorDetail[] } | string;
-  message?: string;
-}
-
-/**
- * Parse FAL API error and extract user-friendly message
- */
-function parseFalError(error: unknown): string {
-  const fallback = error instanceof Error ? error.message : String(error);
-
-  const falError = error as FalApiError;
-  if (!falError?.body) return fallback;
-
-  const body = typeof falError.body === "string"
-    ? safeJsonParse(falError.body)
-    : falError.body;
-
-  const detail = body?.detail?.[0];
-  return detail?.msg ?? falError.message ?? fallback;
-}
-
-function safeJsonParse(str: string): { detail?: FalApiErrorDetail[] } | null {
-  try {
-    return JSON.parse(str) as { detail?: FalApiErrorDetail[] };
-  } catch {
-    return null;
-  }
-}
+import { parseFalError } from "../utils/error-mapper";
 
 /**
  * Handle FAL subscription with timeout and cancellation

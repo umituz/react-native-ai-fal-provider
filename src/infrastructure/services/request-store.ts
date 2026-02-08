@@ -6,6 +6,7 @@
 export interface ActiveRequest<T = unknown> {
   promise: Promise<T>;
   abortController: AbortController;
+  createdAt: number;
 }
 
 const STORE_KEY = "__FAL_PROVIDER_REQUESTS__";
@@ -40,7 +41,11 @@ export function getExistingRequest<T>(key: string): ActiveRequest<T> | undefined
 }
 
 export function storeRequest<T>(key: string, request: ActiveRequest<T>): void {
-  getRequestStore().set(key, request);
+  const requestWithTimestamp = {
+    ...request,
+    createdAt: request.createdAt ?? Date.now(),
+  };
+  getRequestStore().set(key, requestWithTimestamp);
 }
 
 export function removeRequest(key: string): void {
@@ -63,15 +68,41 @@ export function hasActiveRequests(): boolean {
  * Clean up completed/stale requests from the store
  * Should be called periodically to prevent memory leaks
  *
- * Note: This is a placeholder for future implementation.
- * Currently, requests are cleaned up automatically when they complete.
+ * @param maxAge - Maximum age in milliseconds (default: 5 minutes)
+ * @returns Number of requests cleaned up
  */
-export function cleanupRequestStore(_maxAge: number = 300000): void {
+export function cleanupRequestStore(maxAge: number = 300000): number {
   const store = getRequestStore();
+  const now = Date.now();
+  let cleanedCount = 0;
 
-  // Requests are automatically removed when they complete (via finally block)
-  // This function exists for future enhancements like time-based cleanup
-  if (store.size > 50) {
-    // Store size exceeds threshold - indicates potential memory leak
+  // Track stale requests
+  const staleKeys: string[] = [];
+
+  for (const [key, request] of store.entries()) {
+    const requestAge = now - request.createdAt;
+
+    // Clean up stale requests that exceed max age
+    if (requestAge > maxAge) {
+      staleKeys.push(key);
+    }
   }
+
+  // Remove stale requests
+  for (const key of staleKeys) {
+    const request = store.get(key);
+    if (request) {
+      request.abortController.abort();
+      store.delete(key);
+      cleanedCount++;
+    }
+  }
+
+  // Log warning if store size is still large after cleanup
+  if (store.size > 50) {
+    // eslint-disable-next-line no-console
+    console.warn(`Request store size (${store.size}) exceeds threshold, potential memory leak detected`);
+  }
+
+  return cleanedCount;
 }

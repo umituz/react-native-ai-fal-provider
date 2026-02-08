@@ -6,6 +6,7 @@
 import type { FalJobMetadata } from "../job-metadata";
 import { updateJobMetadata } from "../job-metadata";
 import type { IJobStorage } from "./job-storage-interface";
+import { safeJsonParseOrNull, safeJsonStringify } from "../data-parsers.util";
 
 /**
  * Save job metadata to storage
@@ -15,7 +16,7 @@ export async function saveJobMetadata(
   metadata: FalJobMetadata
 ): Promise<void> {
   const key = `fal_job:${metadata.requestId}`;
-  const value = JSON.stringify(metadata);
+  const value = safeJsonStringify(metadata, "{}");
   await storage.setItem(key, value);
 }
 
@@ -30,11 +31,7 @@ export async function loadJobMetadata(
   const value = await storage.getItem(key);
   if (!value) return null;
 
-  try {
-    return JSON.parse(value) as FalJobMetadata;
-  } catch {
-    return null;
-  }
+  return safeJsonParseOrNull<FalJobMetadata>(value);
 }
 
 /**

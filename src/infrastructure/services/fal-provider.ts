@@ -135,7 +135,7 @@ export class FalProvider implements IAIProvider {
     }).then((res) => res.result).finally(() => removeRequest(key));
 
     // Store promise immediately to prevent race condition
-    storeRequest(key, { promise, abortController });
+    storeRequest(key, { promise, abortController, createdAt: Date.now() });
     return promise;
   }
 

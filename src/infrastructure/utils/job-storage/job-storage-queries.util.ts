@@ -6,6 +6,7 @@
 import type { FalJobMetadata } from "../job-metadata";
 import type { IJobStorage } from "./job-storage-interface";
 import { deleteJobMetadata } from "./job-storage-crud.util";
+import { safeJsonParseOrNull } from "../data-parsers.util";
 
 /**
  * Load all jobs from storage
@@ -24,12 +25,9 @@ export async function loadAllJobs(
   for (const key of jobKeys) {
     const value = await storage.getItem(key);
     if (value) {
-      try {
-        const metadata = JSON.parse(value) as FalJobMetadata;
+      const metadata = safeJsonParseOrNull<FalJobMetadata>(value);
+      if (metadata) {
         jobs.push(metadata);
-      } catch {
-        // Skip invalid entries
-        continue;
       }
     }
   }
