@@ -123,9 +123,14 @@ export async function handleFalSubscription<T = unknown>(
     }
 
     const userMessage = parseFalError(error);
+    if (!userMessage || userMessage.trim().length === 0) {
+      throw new Error("An unknown error occurred. Please try again.");
+    }
     throw new Error(userMessage);
   } finally {
-    if (timeoutId) clearTimeout(timeoutId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
     if (listenerAdded && abortHandler && signal) {
       signal.removeEventListener("abort", abortHandler);
     }

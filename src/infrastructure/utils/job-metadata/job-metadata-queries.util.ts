@@ -18,8 +18,22 @@ export function serializeJobMetadata(metadata: FalJobMetadata): string {
  */
 export function deserializeJobMetadata(data: string): FalJobMetadata | null {
   try {
-    return JSON.parse(data) as FalJobMetadata;
-  } catch {
+    const parsed = JSON.parse(data) as Record<string, unknown>;
+    // Validate structure
+    if (!parsed || typeof parsed !== 'object') {
+      // eslint-disable-next-line no-console
+      console.warn('Invalid job metadata: not an object', data);
+      return null;
+    }
+    if (!parsed.requestId || !parsed.model || !parsed.status) {
+      // eslint-disable-next-line no-console
+      console.warn('Invalid job metadata: missing required fields', data);
+      return null;
+    }
+    return parsed as unknown as FalJobMetadata;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Failed to deserialize job metadata:', error, 'Data:', data);
     return null;
   }
 }

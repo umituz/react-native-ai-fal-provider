@@ -19,10 +19,8 @@ export function getRequestStore(): RequestStore {
 }
 
 /**
- * Create a collision-resistant request key using combination of:
- * - Model name
- * - Input hash (for quick comparison)
- * - Unique ID (guarantees uniqueness)
+ * Create a deterministic request key using model and input hash
+ * Same model + input will always produce the same key for deduplication
  */
 export function createRequestKey(model: string, input: Record<string, unknown>): string {
   const inputStr = JSON.stringify(input, Object.keys(input).sort());
@@ -32,11 +30,9 @@ export function createRequestKey(model: string, input: Record<string, unknown>):
     const char = inputStr.charCodeAt(i);
     hash = ((hash << 5) - hash + char) | 0;
   }
-  // Use crypto.randomUUID() for guaranteed uniqueness without race conditions
-  const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `${model}:${hash.toString(36)}:${uniqueId}`;
+  // Return deterministic key without unique ID
+  // This allows proper deduplication: same model + input = same key
+  return `${model}:${hash.toString(36)}`;
 }
 
 export function getExistingRequest<T>(key: string): ActiveRequest<T> | undefined {

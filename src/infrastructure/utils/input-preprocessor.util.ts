@@ -51,9 +51,16 @@ export async function preprocessInput(
   if (Array.isArray(result.image_urls) && result.image_urls.length > 0) {
     const imageUrls = result.image_urls as unknown[];
     const processedUrls: string[] = [];
+    const errors: string[] = [];
 
     for (let i = 0; i < imageUrls.length; i++) {
       const imageUrl = imageUrls[i];
+
+      if (!imageUrl) {
+        errors.push(`image_urls[${i}] is null or undefined`);
+        continue;
+      }
+
       if (isBase64DataUri(imageUrl)) {
         const index = i;
         const uploadPromise = uploadToFalStorage(imageUrl)
@@ -61,6 +68,7 @@ export async function preprocessInput(
             processedUrls[index] = url;
           })
           .catch((error) => {
+            errors.push(`Failed to upload image_urls[${index}]: ${error instanceof Error ? error.message : "Unknown error"}`);
             throw new Error(`Failed to upload image_urls[${index}]: ${error instanceof Error ? error.message : "Unknown error"}`);
           });
 
@@ -68,8 +76,12 @@ export async function preprocessInput(
       } else if (typeof imageUrl === "string") {
         processedUrls[i] = imageUrl;
       } else {
-        processedUrls[i] = "";
+        errors.push(`image_urls[${i}] has invalid type: ${typeof imageUrl}`);
       }
+    }
+
+    if (errors.length > 0) {
+      throw new Error(`Image URL validation failed:\n${errors.join('\n')}`);
     }
 
     result.image_urls = processedUrls;

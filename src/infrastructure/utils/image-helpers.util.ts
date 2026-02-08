@@ -20,8 +20,18 @@ export function extractBase64(dataUri: string): string {
   if (!dataUri.startsWith("data:")) {
     return dataUri;
   }
+
   const parts = dataUri.split(",");
-  return parts.length > 1 ? parts[1] : dataUri;
+  if (parts.length < 2) {
+    throw new Error(`Invalid data URI format: ${dataUri}`);
+  }
+
+  const base64Part = parts[1];
+  if (!base64Part || base64Part.length === 0) {
+    throw new Error(`Empty base64 data in URI: ${dataUri}`);
+  }
+
+  return base64Part;
 }
 
 /**

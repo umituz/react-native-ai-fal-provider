@@ -68,6 +68,9 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
       const model = models.find((m) => m.id === modelId);
       if (model) {
         setSelectedModel(model);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(`Model not found: ${modelId}. Available models:`, models.map(m => m.id));
       }
     },
     [models],

@@ -27,8 +27,10 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
       try {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
         await deleteTempFile(tempUri);
-      } catch {
-        // Silently ignore cleanup failures
+      } catch (cleanupError) {
+        // Log cleanup failure but don't throw
+        // eslint-disable-next-line no-console
+        console.warn(`Failed to cleanup temp file ${tempUri}:`, cleanupError);
       }
     }
   }

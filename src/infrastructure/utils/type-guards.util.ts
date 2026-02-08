@@ -87,15 +87,14 @@ export function isValidApiKey(value: unknown): boolean {
 /**
  * Validate model ID format
  */
+const MODEL_ID_PATTERN = /^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+(\/[a-zA-Z0-9-_.]+)?$/;
+
 export function isValidModelId(value: unknown): boolean {
   if (typeof value !== "string") {
     return false;
   }
 
-  // FAL model IDs follow pattern: "owner/model-name" or "owner/model/version"
-  // Allow uppercase, dots, underscores, hyphens
-  const modelIdPattern = /^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+(\/[a-zA-Z0-9-_.]+)?$/;
-  return modelIdPattern.test(value) && value.length >= 3;
+  return MODEL_ID_PATTERN.test(value) && value.length >= 3;
 }
 
 /**
@@ -109,12 +108,12 @@ export function isValidPrompt(value: unknown): boolean {
  * Validate timeout value
  */
 export function isValidTimeout(value: unknown): boolean {
-  return typeof value === "number" && value > 0 && value <= 600000; // Max 10 minutes
+  return typeof value === "number" && !isNaN(value) && isFinite(value) && value > 0 && value <= 600000; // Max 10 minutes
 }
 
 /**
  * Validate retry count
  */
 export function isValidRetryCount(value: unknown): boolean {
-  return typeof value === "number" && value >= 0 && value <= 10;
+  return typeof value === "number" && !isNaN(value) && isFinite(value) && Number.isInteger(value) && value >= 0 && value <= 10;
 }

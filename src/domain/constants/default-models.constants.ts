@@ -80,10 +80,16 @@ export function getDefaultModelsByType(type: FalModelType): FalModelConfig[] {
       return DEFAULT_IMAGE_TO_VIDEO_MODELS;
     case "text-to-text":
       return DEFAULT_TEXT_TO_TEXT_MODELS;
-    case "image-to-image":
+    case "image-to-image": {
+      // eslint-disable-next-line no-console
+      console.warn('Model type "image-to-image" not supported yet');
       return [];
-    default:
+    }
+    default: {
+      // eslint-disable-next-line no-console
+      console.warn('Unknown model type:', type);
       return [];
+    }
   }
 }
 

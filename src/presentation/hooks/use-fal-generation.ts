@@ -3,7 +3,7 @@
  * React hook for FAL AI generation operations
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { falProvider } from "../../infrastructure/services/fal-provider";
 import { mapFalError } from "../../infrastructure/utils/error-mapper";
 import type { FalJobInput, FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
@@ -38,9 +38,23 @@ export function useFalGeneration<T = unknown>(
 
   const lastRequestRef = useRef<{ endpoint: string; input: FalJobInput } | null>(null);
   const currentRequestIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (falProvider.hasRunningRequest()) {
+        falProvider.cancelCurrentRequest();
+      }
+    };
+  }, []);
 
   const generate = useCallback(
     async (modelEndpoint: string, input: FalJobInput): Promise<T | null> => {
+      if (!isMountedRef.current) return null;
+
       lastRequestRef.current = { endpoint: modelEndpoint, input };
       setIsLoading(true);
       setError(null);
@@ -52,6 +66,7 @@ export function useFalGeneration<T = unknown>(
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
           timeoutMs: options?.timeoutMs,
           onQueueUpdate: (status) => {
+            if (!isMountedRef.current) return;
             if (status.requestId) {
               currentRequestIdRef.current = status.requestId;
             }
@@ -68,16 +83,20 @@ export function useFalGeneration<T = unknown>(
           },
         });
 
+        if (!isMountedRef.current) return null;
         setData(result);
         return result;
       } catch (err) {
+        if (!isMountedRef.current) return null;
         const errorInfo = mapFalError(err);
         setError(errorInfo);
         options?.onError?.(errorInfo);
         return null;
       } finally {
-        setIsLoading(false);
-        setIsCancelling(false);
+        if (isMountedRef.current) {
+          setIsLoading(false);
+          setIsCancelling(false);
+        }
       }
     },
     [options]

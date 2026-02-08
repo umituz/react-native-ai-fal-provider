@@ -45,7 +45,6 @@ export class CostTracker {
   private config: Required<CostTrackerConfig>;
   private costHistory: GenerationCost[] = [];
   private currentOperationCosts: Map<string, number> = new Map();
-  private operationCounter = 0;
 
   constructor(config?: CostTrackerConfig) {
     this.config = {
@@ -84,11 +83,14 @@ export class CostTracker {
   }
 
   startOperation(modelId: string, operation: string): string {
-    // Use counter + timestamp for guaranteed unique operation IDs
-    const operationId = `${Date.now()}-${this.operationCounter++}-${operation}`;
+    // Use crypto.randomUUID() for guaranteed uniqueness without overflow
+    const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}-${operation}`;
+
     const estimatedCost = this.calculateEstimatedCost(modelId);
 
-    this.currentOperationCosts.set(operationId, estimatedCost);
+    this.currentOperationCosts.set(uniqueId, estimatedCost);
 
     if (this.config.trackEstimatedCost) {
       const cost: GenerationCost = {
@@ -104,7 +106,7 @@ export class CostTracker {
       this.config.onCostUpdate(cost);
     }
 
-    return operationId;
+    return uniqueId;
   }
 
   completeOperation(
@@ -156,7 +158,6 @@ export class CostTracker {
   clearHistory(): void {
     this.costHistory = [];
     this.currentOperationCosts.clear();
-    this.operationCounter = 0;
   }
 
   getCostsByModel(modelId: string): GenerationCost[] {
