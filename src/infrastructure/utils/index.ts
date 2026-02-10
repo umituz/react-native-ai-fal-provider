@@ -39,6 +39,7 @@ export {
   mapFalError,
   parseFalError,
   isFalErrorRetryable,
+  extractStatusCode,
 } from "./error-mapper";
 
 export {
@@ -151,3 +152,9 @@ export {
   type ValidationError,
 } from "./input-validator.util";
 
+// FAL generation state manager
+export {
+  FalGenerationStateManager,
+  type GenerationState,
+  type GenerationStateOptions,
+} from "./fal-generation-state-manager.util";

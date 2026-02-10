@@ -29,7 +29,7 @@ export async function preprocessInput(
   input: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const result = { ...input };
-  const uploadPromises: Promise<void>[] = [];
+  const uploadPromises: Promise<unknown>[] = [];
 
   // Handle individual image URL keys
   for (const key of IMAGE_URL_KEYS) {
@@ -50,7 +50,7 @@ export async function preprocessInput(
   // Handle image_urls array (for multi-person generation)
   if (Array.isArray(result.image_urls) && result.image_urls.length > 0) {
     const imageUrls = result.image_urls as unknown[];
-    const processedUrls: string[] = [];
+    const uploadTasks: Array<{ index: number; url: string | Promise<string> }> = [];
     const errors: string[] = [];
 
     for (let i = 0; i < imageUrls.length; i++) {
@@ -62,19 +62,14 @@ export async function preprocessInput(
       }
 
       if (isBase64DataUri(imageUrl)) {
-        const index = i;
-        const uploadPromise = uploadToFalStorage(imageUrl)
-          .then((url) => {
-            processedUrls[index] = url;
-          })
-          .catch((error) => {
-            errors.push(`Failed to upload image_urls[${index}]: ${error instanceof Error ? error.message : "Unknown error"}`);
-            throw new Error(`Failed to upload image_urls[${index}]: ${error instanceof Error ? error.message : "Unknown error"}`);
-          });
-
-        uploadPromises.push(uploadPromise);
+        const uploadPromise = uploadToFalStorage(imageUrl).catch((error) => {
+          const errorMessage = `Failed to upload image_urls[${i}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+          errors.push(errorMessage);
+          throw new Error(errorMessage);
+        });
+        uploadTasks.push({ index: i, url: uploadPromise });
       } else if (typeof imageUrl === "string") {
-        processedUrls[i] = imageUrl;
+        uploadTasks.push({ index: i, url: imageUrl });
       } else {
         errors.push(`image_urls[${i}] has invalid type: ${typeof imageUrl}`);
       }
@@ -83,6 +78,13 @@ export async function preprocessInput(
     if (errors.length > 0) {
       throw new Error(`Image URL validation failed:\n${errors.join('\n')}`);
     }
+
+    // Wait for all uploads and build the final array without sparse elements
+    const processedUrls = await Promise.all(
+      uploadTasks
+        .sort((a, b) => a.index - b.index)
+        .map((task) => Promise.resolve(task.url))
+    );
 
     result.image_urls = processedUrls;
   }

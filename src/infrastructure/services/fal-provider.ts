@@ -126,16 +126,35 @@ export class FalProvider implements IAIProvider {
     const abortController = new AbortController();
     const tracker = this.costTracker;
 
-    const promise = executeWithCostTracking({
+    // Store promise immediately BEFORE creating it to prevent race condition
+    // Multiple simultaneous calls with same params will get the same promise
+    let resolvePromise: (value: T) => void;
+    let rejectPromise: (error: unknown) => void;
+    const promise = new Promise<T>((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
+
+    storeRequest(key, { promise, abortController, createdAt: Date.now() });
+
+    // Execute the actual operation and resolve/reject the stored promise
+    executeWithCostTracking({
       tracker,
       model,
       operation: "subscribe",
       execute: () => handleFalSubscription<T>(model, processedInput, options, abortController.signal),
       getRequestId: (res) => res.requestId ?? undefined,
-    }).then((res) => res.result).finally(() => removeRequest(key));
+    })
+      .then((res) => {
+        resolvePromise!(res.result);
+        return res.result;
+      })
+      .catch((error) => {
+        rejectPromise!(error);
+        throw error;
+      })
+      .finally(() => removeRequest(key));
 
-    // Store promise immediately to prevent race condition
-    storeRequest(key, { promise, abortController, createdAt: Date.now() });
     return promise;
   }
 
@@ -161,6 +180,7 @@ export class FalProvider implements IAIProvider {
     this.cancelCurrentRequest();
     this.apiKey = null;
     this.initialized = false;
+    this.costTracker = null;
   }
 
   cancelCurrentRequest(): void {

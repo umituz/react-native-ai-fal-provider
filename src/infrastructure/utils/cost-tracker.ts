@@ -72,10 +72,18 @@ export class CostTracker {
   }
 
   startOperation(modelId: string, operation: string): string {
-    // Use crypto.randomUUID() for guaranteed uniqueness without overflow
-    const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}-${operation}`;
+    // Generate unique operation ID
+    let uniqueId: string;
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      uniqueId = crypto.randomUUID();
+    } else {
+      // Fallback: Use timestamp with random component and counter
+      // Format: timestamp-randomCounter-operationHash
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 11);
+      const operationHash = operation.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0).toString(36);
+      uniqueId = `${timestamp}-${random}-${operationHash}`;
+    }
 
     const estimatedCost = this.calculateEstimatedCost(modelId);
 

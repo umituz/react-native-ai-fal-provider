@@ -9,8 +9,10 @@ export {
   NSFWContentError,
   cancelCurrentFalRequest,
   hasRunningFalRequest,
+  cleanupRequestStore,
+  stopAutomaticCleanup,
 } from "../infrastructure/services";
-export type { FalProviderType } from "../infrastructure/services";
+export type { FalProviderType, ActiveRequest } from "../infrastructure/services";
 
 export {
   categorizeFalError,

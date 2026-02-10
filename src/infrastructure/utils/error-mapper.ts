@@ -1,73 +1,14 @@
 /**
  * FAL Error Mapper - Maps errors to user-friendly info
+ *
+ * This module re-exports error handling functions from the unified
+ * fal-error-handler.util module for backward compatibility.
  */
 
-import type { FalErrorInfo } from "../../domain/entities/error.types";
-import { categorizeFalError } from "./error-categorizer";
-import { safeJsonParseOrNull } from "./data-parsers.util";
-
-const STATUS_CODES = ["400", "401", "402", "403", "404", "422", "429", "500", "502", "503", "504"];
-
-interface FalApiErrorDetail {
-  msg?: string;
-  type?: string;
-  loc?: string[];
-}
-
-interface FalApiError {
-  body?: { detail?: FalApiErrorDetail[] } | string;
-  message?: string;
-}
-
-function extractStatusCode(errorString: string): number | undefined {
-  const code = STATUS_CODES.find((c) => errorString.includes(c));
-  return code ? parseInt(code, 10) : undefined;
-}
-
-/**
- * Parse FAL API error and extract user-friendly message
- */
-export function parseFalError(error: unknown): string {
-  const fallback = error instanceof Error ? error.message : String(error);
-
-  const falError = error as FalApiError;
-  if (!falError?.body) return fallback;
-
-  const body = typeof falError.body === "string"
-    ? safeJsonParseOrNull<{ detail?: FalApiErrorDetail[] }>(falError.body)
-    : falError.body;
-
-  const detail = body?.detail?.[0];
-  return detail?.msg ?? falError.message ?? fallback;
-}
-
-export function mapFalError(error: unknown): FalErrorInfo {
-  const category = categorizeFalError(error);
-
-  // Preserve full error information including stack trace
-  if (error instanceof Error) {
-    return {
-      type: category.type,
-      messageKey: `fal.errors.${category.messageKey}`,
-      retryable: category.retryable,
-      originalError: error.message,
-      originalErrorName: error.name,
-      stack: error.stack,
-      statusCode: extractStatusCode(error.message),
-    };
-  }
-
-  const errorString = String(error);
-
-  return {
-    type: category.type,
-    messageKey: `fal.errors.${category.messageKey}`,
-    retryable: category.retryable,
-    originalError: errorString,
-    statusCode: extractStatusCode(errorString),
-  };
-}
-
-export function isFalErrorRetryable(error: unknown): boolean {
-  return categorizeFalError(error).retryable;
-}
+export {
+  mapFalError,
+  parseFalError,
+  isFalErrorRetryable,
+  categorizeFalError,
+  extractStatusCode,
+} from "./fal-error-handler.util";

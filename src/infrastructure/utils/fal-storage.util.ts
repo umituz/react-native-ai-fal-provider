@@ -17,21 +17,21 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
   const tempUri = (await base64ToTempFile(base64));
 
+  if (!tempUri) {
+    throw new Error("Failed to create temporary file from base64 data");
+  }
+
   try {
     const response = await fetch(tempUri);
     const blob = await response.blob();
     const url = await fal.storage.upload(blob);
     return url;
   } finally {
-    if (tempUri) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        await deleteTempFile(tempUri);
-      } catch (cleanupError) {
-        // Log cleanup failure but don't throw
-        // eslint-disable-next-line no-console
-        console.warn(`Failed to cleanup temp file ${tempUri}:`, cleanupError);
-      }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      await deleteTempFile(tempUri);
+    } catch {
+      // Silently ignore cleanup errors
     }
   }
 }

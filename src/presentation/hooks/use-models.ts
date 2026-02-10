@@ -12,7 +12,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { falModelsService } from "../../infrastructure/services/fal-models.service";
 import type { FalModelConfig } from "../../domain/constants/default-models.constants";
-import { DEFAULT_CREDIT_COSTS, DEFAULT_MODEL_IDS } from "../../domain/constants/default-models.constants";
 import type {
   ModelType,
   ModelSelectionConfig,
@@ -36,28 +35,16 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const defaultCreditCost = config?.defaultCreditCost ?? DEFAULT_CREDIT_COSTS[type];
-  const defaultModelId = config?.defaultModelId ?? DEFAULT_MODEL_IDS[type];
-
   const loadModels = useCallback(() => {
     setIsLoading(true);
     setError(null);
 
-    const fetchedModels = falModelsService.getModels(type);
-    setModels(fetchedModels);
-
-    const targetId = config?.initialModelId ?? defaultModelId;
-    const initial =
-      fetchedModels.find((m) => m.id === targetId) ||
-      fetchedModels.find((m) => m.isDefault) ||
-      fetchedModels[0];
-
-    if (initial) {
-      setSelectedModel(initial);
-    }
+    const selectionData = falModelsService.getModelSelectionData(type, config);
+    setModels(selectionData.models);
+    setSelectedModel(selectionData.selectedModel);
 
     setIsLoading(false);
-  }, [type, config?.initialModelId, defaultModelId]);
+  }, [type, config]);
 
   useEffect(() => {
     loadModels();
@@ -68,24 +55,21 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
       const model = models.find((m) => m.id === modelId);
       if (model) {
         setSelectedModel(model);
-      } else {
-        // eslint-disable-next-line no-console
-        console.warn(`Model not found: ${modelId}. Available models:`, models.map(m => m.id));
       }
     },
     [models],
   );
 
   const creditCost = useMemo(() => {
-    if (selectedModel?.pricing?.freeUserCost) {
-      return selectedModel.pricing.freeUserCost;
-    }
-    return defaultCreditCost;
-  }, [selectedModel, defaultCreditCost]);
+    return falModelsService.getModelCreditCost(
+      selectedModel?.id ?? falModelsService.getDefaultModelId(type),
+      type
+    );
+  }, [selectedModel, type]);
 
   const modelId = useMemo(() => {
-    return selectedModel?.id ?? defaultModelId;
-  }, [selectedModel, defaultModelId]);
+    return selectedModel?.id ?? falModelsService.getDefaultModelId(type);
+  }, [selectedModel, type]);
 
   return {
     models,

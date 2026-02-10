@@ -6,8 +6,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { falProvider } from "../../infrastructure/services/fal-provider";
 import { mapFalError } from "../../infrastructure/utils/error-mapper";
-import type { FalJobInput, FalQueueStatus, FalLogEntry } from "../../domain/entities/fal.types";
+import { FalGenerationStateManager } from "../../infrastructure/utils/fal-generation-state-manager.util";
+import type { FalJobInput, FalQueueStatus } from "../../domain/entities/fal.types";
 import type { FalErrorInfo } from "../../domain/entities/error.types";
+import type { JobStatus } from "../../domain/types";
 
 export interface UseFalGenerationOptions {
   timeoutMs?: number;
@@ -28,6 +30,19 @@ export interface UseFalGenerationResult<T> {
   reset: () => void;
 }
 
+function convertJobStatusToFalQueueStatus(status: JobStatus, currentRequestId: string | null): FalQueueStatus {
+  return {
+    status: status.status as FalQueueStatus["status"],
+    requestId: status.requestId ?? currentRequestId ?? "",
+    logs: status.logs?.map((log) => ({
+      message: log.message,
+      level: log.level,
+      timestamp: log.timestamp,
+    })),
+    queuePosition: status.queuePosition,
+  };
+}
+
 export function useFalGeneration<T = unknown>(
   options?: UseFalGenerationOptions
 ): UseFalGenerationResult<T> {
@@ -36,76 +51,82 @@ export function useFalGeneration<T = unknown>(
   const [isLoading, setIsLoading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  const lastRequestRef = useRef<{ endpoint: string; input: FalJobInput } | null>(null);
-  const currentRequestIdRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
+  const stateManagerRef = useRef<FalGenerationStateManager<T> | null>(null);
+  const optionsRef = useRef(options);
 
-  // Cleanup on unmount
+  // Keep optionsRef updated without causing effect re-runs
   useEffect(() => {
-    isMountedRef.current = true;
+    optionsRef.current = options;
+  }, [options]);
+
+  useEffect(() => {
+    stateManagerRef.current = new FalGenerationStateManager<T>({
+      onProgress: (status) => {
+        optionsRef.current?.onProgress?.(status);
+      },
+    });
+
+    stateManagerRef.current.setIsMounted(true);
+
     return () => {
-      isMountedRef.current = false;
+      stateManagerRef.current?.setIsMounted(false);
       if (falProvider.hasRunningRequest()) {
         falProvider.cancelCurrentRequest();
       }
     };
-  }, []);
+  }, []); // Empty deps - only run on mount/unmount
 
   const generate = useCallback(
     async (modelEndpoint: string, input: FalJobInput): Promise<T | null> => {
-      if (!isMountedRef.current) return null;
+      const stateManager = stateManagerRef.current;
+      if (!stateManager || !stateManager.checkMounted()) return null;
 
-      lastRequestRef.current = { endpoint: modelEndpoint, input };
+      stateManager.setLastRequest(modelEndpoint, input);
       setIsLoading(true);
       setError(null);
       setData(null);
-      currentRequestIdRef.current = null;
+      stateManager.setCurrentRequestId(null);
       setIsCancelling(false);
 
       try {
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
-          timeoutMs: options?.timeoutMs,
-          onQueueUpdate: (status) => {
-            if (!isMountedRef.current) return;
-            if (status.requestId) {
-              currentRequestIdRef.current = status.requestId;
-            }
-            options?.onProgress?.({
-              status: status.status,
-              requestId: status.requestId ?? currentRequestIdRef.current ?? "",
-              logs: status.logs?.map((log: FalLogEntry) => ({
-                message: log.message,
-                level: log.level,
-                timestamp: log.timestamp,
-              })),
-              queuePosition: status.queuePosition,
-            });
+          timeoutMs: optionsRef.current?.timeoutMs,
+          onQueueUpdate: (status: JobStatus) => {
+            const falStatus = convertJobStatusToFalQueueStatus(
+              status,
+              stateManager.getCurrentRequestId()
+            );
+            stateManager.handleQueueUpdate(falStatus);
           },
         });
 
-        if (!isMountedRef.current) return null;
+        if (!stateManager.checkMounted()) return null;
         setData(result);
         return result;
       } catch (err) {
-        if (!isMountedRef.current) return null;
+        if (!stateManager.checkMounted()) return null;
         const errorInfo = mapFalError(err);
         setError(errorInfo);
-        options?.onError?.(errorInfo);
+        optionsRef.current?.onError?.(errorInfo);
         return null;
       } finally {
-        if (isMountedRef.current) {
+        if (stateManager.checkMounted()) {
           setIsLoading(false);
           setIsCancelling(false);
         }
       }
     },
-    [options]
+    [] // No deps - we use optionsRef.current inside
   );
 
   const retry = useCallback(async (): Promise<T | null> => {
-    if (!lastRequestRef.current) return null;
-    const { endpoint, input } = lastRequestRef.current;
-    return generate(endpoint, input);
+    const stateManager = stateManagerRef.current;
+    if (!stateManager) return null;
+
+    const lastRequest = stateManager.getLastRequest();
+    if (!lastRequest) return null;
+
+    return generate(lastRequest.endpoint, lastRequest.input);
   }, [generate]);
 
   const cancel = useCallback(() => {
@@ -121,16 +142,17 @@ export function useFalGeneration<T = unknown>(
     setError(null);
     setIsLoading(false);
     setIsCancelling(false);
-    lastRequestRef.current = null;
-    currentRequestIdRef.current = null;
+    stateManagerRef.current?.clearLastRequest();
   }, [cancel]);
+
+  const requestId = stateManagerRef.current?.getCurrentRequestId() ?? null;
 
   return {
     data,
     error,
     isLoading,
     isRetryable: error?.retryable ?? false,
-    requestId: currentRequestIdRef.current,
+    requestId,
     isCancelling,
     generate,
     retry,

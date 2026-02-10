@@ -12,6 +12,10 @@ export interface ActiveRequest<T = unknown> {
 const STORE_KEY = "__FAL_PROVIDER_REQUESTS__";
 type RequestStore = Map<string, ActiveRequest>;
 
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+const CLEANUP_INTERVAL = 60000; // 1 minute
+const MAX_REQUEST_AGE = 300000; // 5 minutes
+
 export function getRequestStore(): RequestStore {
   if (!(globalThis as Record<string, unknown>)[STORE_KEY]) {
     (globalThis as Record<string, unknown>)[STORE_KEY] = new Map();
@@ -46,10 +50,20 @@ export function storeRequest<T>(key: string, request: ActiveRequest<T>): void {
     createdAt: request.createdAt ?? Date.now(),
   };
   getRequestStore().set(key, requestWithTimestamp);
+
+  // Start automatic cleanup if not already running
+  startAutomaticCleanup();
 }
 
 export function removeRequest(key: string): void {
-  getRequestStore().delete(key);
+  const store = getRequestStore();
+  store.delete(key);
+
+  // Stop cleanup timer if store is empty
+  if (store.size === 0 && cleanupTimer) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
+  }
 }
 
 export function cancelAllRequests(): void {
@@ -58,6 +72,12 @@ export function cancelAllRequests(): void {
     req.abortController.abort();
   });
   store.clear();
+
+  // Stop cleanup timer
+  if (cleanupTimer) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
+  }
 }
 
 export function hasActiveRequests(): boolean {
@@ -71,7 +91,7 @@ export function hasActiveRequests(): boolean {
  * @param maxAge - Maximum age in milliseconds (default: 5 minutes)
  * @returns Number of requests cleaned up
  */
-export function cleanupRequestStore(maxAge: number = 300000): number {
+export function cleanupRequestStore(maxAge: number = MAX_REQUEST_AGE): number {
   const store = getRequestStore();
   const now = Date.now();
   let cleanedCount = 0;
@@ -98,11 +118,38 @@ export function cleanupRequestStore(maxAge: number = 300000): number {
     }
   }
 
-  // Log warning if store size is still large after cleanup
-  if (store.size > 50) {
-    // eslint-disable-next-line no-console
-    console.warn(`Request store size (${store.size}) exceeds threshold, potential memory leak detected`);
+  // Stop cleanup timer if store is empty
+  if (store.size === 0 && cleanupTimer) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
   }
 
   return cleanedCount;
+}
+
+/**
+ * Start automatic cleanup of stale requests
+ * Runs periodically to prevent memory leaks
+ */
+function startAutomaticCleanup(): void {
+  if (cleanupTimer) {
+    return; // Already running
+  }
+
+  cleanupTimer = setInterval(() => {
+    const cleanedCount = cleanupRequestStore(MAX_REQUEST_AGE);
+    if (cleanedCount > 0) {
+      // Cleanup was performed
+    }
+  }, CLEANUP_INTERVAL);
+}
+
+/**
+ * Stop automatic cleanup (typically on app shutdown)
+ */
+export function stopAutomaticCleanup(): void {
+  if (cleanupTimer) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
+  }
 }
