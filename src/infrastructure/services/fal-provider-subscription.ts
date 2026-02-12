@@ -54,6 +54,18 @@ export async function handleFalSubscription<T = unknown>(
           });
           if (jobStatus.status !== lastStatus) {
             lastStatus = jobStatus.status;
+
+            // Emit status changes without fake progress percentages
+            if (options?.onProgress) {
+              if (jobStatus.status === "IN_QUEUE" || jobStatus.status === "IN_PROGRESS") {
+                // Indeterminate progress - let UI show spinner/loading
+                options.onProgress({ progress: -1, status: jobStatus.status });
+              } else if (jobStatus.status === "COMPLETED") {
+                options.onProgress({ progress: 100, status: "COMPLETED" });
+              } else if (jobStatus.status === "FAILED") {
+                options.onProgress({ progress: 0, status: "FAILED" });
+              }
+            }
           }
           options?.onQueueUpdate?.(jobStatus);
         },
@@ -110,7 +122,8 @@ export async function handleFalRun<T = unknown>(
   input: Record<string, unknown>,
   options?: RunOptions
 ): Promise<T> {
-  options?.onProgress?.({ progress: 10, status: "IN_PROGRESS" as const });
+  // Indeterminate progress - no fake percentages
+  options?.onProgress?.({ progress: -1, status: "IN_PROGRESS" as const });
 
   try {
     const result = await fal.run(model, { input });
