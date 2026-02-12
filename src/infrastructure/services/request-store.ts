@@ -10,17 +10,37 @@ export interface ActiveRequest<T = unknown> {
 }
 
 const STORE_KEY = "__FAL_PROVIDER_REQUESTS__";
+const LOCK_KEY = "__FAL_PROVIDER_REQUESTS_LOCK__";
 type RequestStore = Map<string, ActiveRequest>;
 
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 const CLEANUP_INTERVAL = 60000; // 1 minute
 const MAX_REQUEST_AGE = 300000; // 5 minutes
 
-export function getRequestStore(): RequestStore {
-  if (!(globalThis as Record<string, unknown>)[STORE_KEY]) {
-    (globalThis as Record<string, unknown>)[STORE_KEY] = new Map();
+/**
+ * Simple lock mechanism to prevent concurrent access issues
+ * NOTE: This is not a true mutex but provides basic protection for React Native
+ */
+function acquireLock(): boolean {
+  const globalObj = globalThis as Record<string, unknown>;
+  if (globalObj[LOCK_KEY]) {
+    return false; // Lock already held
   }
-  return (globalThis as Record<string, unknown>)[STORE_KEY] as RequestStore;
+  globalObj[LOCK_KEY] = true;
+  return true;
+}
+
+function releaseLock(): void {
+  const globalObj = globalThis as Record<string, unknown>;
+  globalObj[LOCK_KEY] = false;
+}
+
+export function getRequestStore(): RequestStore {
+  const globalObj = globalThis as Record<string, unknown>;
+  if (!globalObj[STORE_KEY]) {
+    globalObj[STORE_KEY] = new Map();
+  }
+  return globalObj[STORE_KEY] as RequestStore;
 }
 
 /**
@@ -45,14 +65,27 @@ export function getExistingRequest<T>(key: string): ActiveRequest<T> | undefined
 }
 
 export function storeRequest<T>(key: string, request: ActiveRequest<T>): void {
-  const requestWithTimestamp = {
-    ...request,
-    createdAt: request.createdAt ?? Date.now(),
-  };
-  getRequestStore().set(key, requestWithTimestamp);
+  // Acquire lock for thread-safe operation
+  const maxRetries = 3;
+  let retries = 0;
 
-  // Start automatic cleanup if not already running
-  startAutomaticCleanup();
+  while (!acquireLock() && retries < maxRetries) {
+    retries++;
+    // Brief spin wait (not ideal, but works for React Native single-threaded model)
+  }
+
+  try {
+    const requestWithTimestamp = {
+      ...request,
+      createdAt: request.createdAt ?? Date.now(),
+    };
+    getRequestStore().set(key, requestWithTimestamp);
+
+    // Start automatic cleanup if not already running
+    startAutomaticCleanup();
+  } finally {
+    releaseLock();
+  }
 }
 
 export function removeRequest(key: string): void {
@@ -138,8 +171,16 @@ function startAutomaticCleanup(): void {
 
   cleanupTimer = setInterval(() => {
     const cleanedCount = cleanupRequestStore(MAX_REQUEST_AGE);
+    const store = getRequestStore();
+
+    // Stop timer if no more requests in store (prevents indefinite timer)
+    if (store.size === 0 && cleanupTimer) {
+      clearInterval(cleanupTimer);
+      cleanupTimer = null;
+    }
+
     if (cleanedCount > 0) {
-      // Cleanup was performed
+      console.log(`[request-store] Cleaned up ${cleanedCount} stale request(s)`);
     }
   }, CLEANUP_INTERVAL);
 }

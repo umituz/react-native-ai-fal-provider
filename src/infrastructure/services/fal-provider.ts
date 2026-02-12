@@ -153,7 +153,17 @@ export class FalProvider implements IAIProvider {
         rejectPromise!(error);
         throw error;
       })
-      .finally(() => removeRequest(key));
+      .finally(() => {
+        try {
+          removeRequest(key);
+        } catch (cleanupError) {
+          // Log but don't throw - cleanup errors shouldn't affect the operation result
+          console.error(
+            `[fal-provider] Error removing request from store: ${key}`,
+            cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+          );
+        }
+      });
 
     return promise;
   }

@@ -35,20 +35,37 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Direct effect - no intermediate callback needed
+  useEffect(() => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const selectionData = falModelsService.getModelSelectionData(type, config);
+      setModels(selectionData.models);
+      setSelectedModel(selectionData.selectedModel);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load models');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [type, config]); // Direct dependencies
+
+  // Separate refresh callback for manual reloads
   const loadModels = useCallback(() => {
     setIsLoading(true);
     setError(null);
 
-    const selectionData = falModelsService.getModelSelectionData(type, config);
-    setModels(selectionData.models);
-    setSelectedModel(selectionData.selectedModel);
-
-    setIsLoading(false);
+    try {
+      const selectionData = falModelsService.getModelSelectionData(type, config);
+      setModels(selectionData.models);
+      setSelectedModel(selectionData.selectedModel);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load models');
+    } finally {
+      setIsLoading(false);
+    }
   }, [type, config]);
-
-  useEffect(() => {
-    loadModels();
-  }, [loadModels]);
 
   const selectModel = useCallback(
     (modelId: string) => {

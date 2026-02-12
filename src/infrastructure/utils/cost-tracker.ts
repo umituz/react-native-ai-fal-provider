@@ -56,9 +56,14 @@ export class CostTracker {
         };
       }
     } catch (error) {
-      // Silently return default cost info on error
+      // Log error but continue with default cost info
+      console.warn(
+        `[cost-tracker] Failed to get model cost info for ${modelId}:`,
+        error instanceof Error ? error.message : String(error)
+      );
     }
 
+    // Return default cost info (0 cost) if model not found or error occurred
     return {
       model: modelId,
       costPerRequest: 0,

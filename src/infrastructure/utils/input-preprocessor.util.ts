@@ -38,9 +38,12 @@ export async function preprocessInput(
       const uploadPromise = uploadToFalStorage(value)
         .then((url) => {
           result[key] = url;
+          return url;
         })
         .catch((error) => {
-          throw new Error(`Failed to upload ${key}: ${error instanceof Error ? error.message : "Unknown error"}`);
+          const errorMessage = `Failed to upload ${key}: ${error instanceof Error ? error.message : "Unknown error"}`;
+          console.error(`[preprocessInput] ${errorMessage}`);
+          throw new Error(errorMessage);
         });
 
       uploadPromises.push(uploadPromise);
@@ -62,11 +65,14 @@ export async function preprocessInput(
       }
 
       if (isBase64DataUri(imageUrl)) {
-        const uploadPromise = uploadToFalStorage(imageUrl).catch((error) => {
-          const errorMessage = `Failed to upload image_urls[${i}]: ${error instanceof Error ? error.message : "Unknown error"}`;
-          errors.push(errorMessage);
-          throw new Error(errorMessage);
-        });
+        const uploadPromise = uploadToFalStorage(imageUrl)
+          .then((url) => url)
+          .catch((error) => {
+            const errorMessage = `Failed to upload image_urls[${i}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+            console.error(`[preprocessInput] ${errorMessage}`);
+            errors.push(errorMessage);
+            throw new Error(errorMessage);
+          });
         uploadTasks.push({ index: i, url: uploadPromise });
       } else if (typeof imageUrl === "string") {
         uploadTasks.push({ index: i, url: imageUrl });

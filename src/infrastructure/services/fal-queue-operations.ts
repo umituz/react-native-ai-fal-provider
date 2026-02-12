@@ -27,6 +27,16 @@ function isValidFalQueueStatus(value: unknown): value is FalQueueStatus {
 
 export async function submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
   const result = await fal.queue.submit(model, { input });
+
+  // Validate required fields from FAL API response
+  if (!result?.request_id) {
+    throw new Error(`FAL API response missing request_id for model ${model}`);
+  }
+
+  if (!result?.status_url) {
+    throw new Error(`FAL API response missing status_url for model ${model}`);
+  }
+
   return {
     requestId: result.request_id,
     statusUrl: result.status_url,

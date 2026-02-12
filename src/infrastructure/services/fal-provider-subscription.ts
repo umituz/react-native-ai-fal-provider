@@ -23,8 +23,11 @@ export async function handleFalSubscription<T = unknown>(
 ): Promise<{ result: T; requestId: string | null }> {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
 
-  if (timeoutMs <= 0 || timeoutMs > 3600000) {
-    throw new Error(`Invalid timeout: ${timeoutMs}ms. Must be between 1 and 3600000ms (1 hour)`);
+  // Validate timeout is a positive integer within reasonable bounds
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 3600000) {
+    throw new Error(
+      `Invalid timeout: ${timeoutMs}ms. Must be a positive integer between 1 and 3600000ms (1 hour)`
+    );
   }
 
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -32,13 +35,14 @@ export async function handleFalSubscription<T = unknown>(
   let abortHandler: (() => void) | null = null;
   let listenerAdded = false;
 
-  if (signal?.aborted) {
-    throw new Error("Request cancelled by user");
-  }
-
   let lastStatus = "";
 
   try {
+    // Check if signal is already aborted BEFORE starting any async work
+    if (signal?.aborted) {
+      throw new Error("Request cancelled by user");
+    }
+
     const promises: Promise<unknown>[] = [
       fal.subscribe(model, {
         input,
@@ -77,13 +81,19 @@ export async function handleFalSubscription<T = unknown>(
       }),
     ];
 
-    if (signal && !signal.aborted) {
+    // Set up abort listener BEFORE checking aborted state again to avoid race
+    if (signal) {
       const abortPromise = new Promise<never>((_, reject) => {
         abortHandler = () => {
           reject(new Error("Request cancelled by user"));
         };
         signal.addEventListener("abort", abortHandler);
         listenerAdded = true;
+
+        // Check again after adding listener to catch signals that arrived during setup
+        if (signal.aborted) {
+          abortHandler();
+        }
       });
       promises.push(abortPromise);
     }

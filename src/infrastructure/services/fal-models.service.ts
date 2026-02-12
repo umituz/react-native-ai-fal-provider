@@ -53,10 +53,13 @@ export function getModelPricing(modelId: string): { freeUserCost: number; premiu
 /**
  * Get credit cost for a model
  * Returns the model's free user cost if available, otherwise returns the default cost for the type
+ * NOTE: Use ?? instead of || to handle 0 values correctly (free models)
  */
 export function getModelCreditCost(modelId: string, modelType: ModelType): number {
   const pricing = getModelPricing(modelId);
-  if (pricing?.freeUserCost) {
+  // CRITICAL: Use !== undefined instead of truthy check
+  // because freeUserCost can be 0 for free models!
+  if (pricing && pricing.freeUserCost !== undefined) {
     return pricing.freeUserCost;
   }
   return DEFAULT_CREDIT_COSTS[modelType];

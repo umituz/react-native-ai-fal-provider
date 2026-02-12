@@ -94,32 +94,35 @@ function categorizeError(error: unknown): FalErrorCategory {
 }
 
 /**
+ * Build FalErrorInfo from error string and category
+ */
+function buildErrorInfo(
+  category: FalErrorCategory,
+  errorString: string,
+  errorInstance?: Error
+): FalErrorInfo {
+  return {
+    type: category.type,
+    messageKey: `fal.errors.${category.messageKey}`,
+    retryable: category.retryable,
+    originalError: errorString,
+    originalErrorName: errorInstance?.name,
+    stack: errorInstance?.stack,
+    statusCode: extractStatusCode(errorString),
+  };
+}
+
+/**
  * Map error to FalErrorInfo with full error details
  */
 export function mapFalError(error: unknown): FalErrorInfo {
   const category = categorizeError(error);
 
   if (error instanceof Error) {
-    return {
-      type: category.type,
-      messageKey: `fal.errors.${category.messageKey}`,
-      retryable: category.retryable,
-      originalError: error.message,
-      originalErrorName: error.name,
-      stack: error.stack,
-      statusCode: extractStatusCode(error.message),
-    };
+    return buildErrorInfo(category, error.message, error);
   }
 
-  const errorString = String(error);
-
-  return {
-    type: category.type,
-    messageKey: `fal.errors.${category.messageKey}`,
-    retryable: category.retryable,
-    originalError: errorString,
-    statusCode: extractStatusCode(errorString),
-  };
+  return buildErrorInfo(category, String(error));
 }
 
 /**

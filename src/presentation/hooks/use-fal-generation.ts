@@ -60,18 +60,29 @@ export function useFalGeneration<T = unknown>(
   }, [options]);
 
   useEffect(() => {
-    stateManagerRef.current = new FalGenerationStateManager<T>({
+    const stateManager = new FalGenerationStateManager<T>({
       onProgress: (status) => {
         optionsRef.current?.onProgress?.(status);
       },
     });
 
-    stateManagerRef.current.setIsMounted(true);
+    stateManager.setIsMounted(true);
+    stateManagerRef.current = stateManager;
 
     return () => {
-      stateManagerRef.current?.setIsMounted(false);
+      // Ensure we have a valid reference before cleanup
+      if (stateManagerRef.current) {
+        stateManagerRef.current.setIsMounted(false);
+        stateManagerRef.current = null;
+      }
+
+      // Cancel any running requests
       if (falProvider.hasRunningRequest()) {
-        falProvider.cancelCurrentRequest();
+        try {
+          falProvider.cancelCurrentRequest();
+        } catch (error) {
+          console.warn('[useFalGeneration] Error cancelling request on unmount:', error);
+        }
       }
     };
   }, []); // Empty deps - only run on mount/unmount

@@ -25,6 +25,7 @@ export class FalGenerationStateManager<T> {
   private isMounted = true;
   private currentRequestId: string | null = null;
   private lastRequest: { endpoint: string; input: FalJobInput } | null = null;
+  private lastNotifiedStatus: string | null = null; // Track last status to prevent duplicate callbacks
 
   constructor(
     private options?: GenerationStateOptions<T>
@@ -57,6 +58,7 @@ export class FalGenerationStateManager<T> {
   clearLastRequest(): void {
     this.lastRequest = null;
     this.currentRequestId = null;
+    this.lastNotifiedStatus = null;
   }
 
   handleQueueUpdate(status: FalQueueStatus): void {
@@ -77,8 +79,13 @@ export class FalGenerationStateManager<T> {
       queuePosition: status.queuePosition,
     };
 
-    this.options?.onQueueUpdate?.(normalizedStatus);
-    this.options?.onProgress?.(normalizedStatus);
+    // Only notify if status actually changed (idempotent callbacks)
+    const statusKey = `${normalizedStatus.status}-${normalizedStatus.requestId}`;
+    if (this.lastNotifiedStatus !== statusKey) {
+      this.lastNotifiedStatus = statusKey;
+      this.options?.onQueueUpdate?.(normalizedStatus);
+      this.options?.onProgress?.(normalizedStatus);
+    }
   }
 
   handleResult(result: T): void {
