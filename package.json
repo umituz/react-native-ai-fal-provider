@@ -1,6 +1,6 @@
 {
   "name": "@umituz/react-native-ai-fal-provider",
-  "version": "2.0.42",
+  "version": "2.1.0",
   "description": "FAL AI provider for React Native - implements IAIProvider interface for unified AI generation",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -28,6 +28,7 @@
   },
   "peerDependencies": {
     "@fal-ai/client": ">=0.6.0",
+    "@umituz/react-native-ai-generation-content": ">=1.70.0",
     "expo": ">=54.0.0",
     "react": ">=19.0.0",
     "react-native": "0.81.4"
@@ -49,6 +50,7 @@
     "@types/react": "~19.1.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "@umituz/react-native-ai-generation-content": "^1.70.1",
     "@umituz/react-native-auth": "*",
     "@umituz/react-native-design-system": "*",
     "@umituz/react-native-firebase": "*",

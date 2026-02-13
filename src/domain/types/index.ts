@@ -22,7 +22,7 @@ export type {
   FaceSwapOptions,
 } from "./input-builders.types";
 
-// Provider Types (local definitions)
+// Provider Types (imported from core package)
 export type {
   ImageFeatureType,
   VideoFeatureType,
@@ -44,4 +44,4 @@ export type {
   IAIProviderImageFeatures,
   IAIProviderVideoFeatures,
   IAIProvider,
-} from "./provider.types";
+} from "@umituz/react-native-ai-generation-content/core";
