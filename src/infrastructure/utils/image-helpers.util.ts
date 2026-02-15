@@ -15,20 +15,24 @@ export function formatImageDataUri(base64: string): string {
 
 /**
  * Extract base64 from data URI
+ * Uses indexOf instead of split to handle edge cases where comma might appear in base64
  */
 export function extractBase64(dataUri: string): string {
   if (!dataUri.startsWith("data:")) {
     return dataUri;
   }
 
-  const parts = dataUri.split(",");
-  if (parts.length < 2) {
-    throw new Error(`Invalid data URI format: ${dataUri}`);
+  // Find the first comma which separates header from data
+  const commaIndex = dataUri.indexOf(",");
+  if (commaIndex === -1) {
+    throw new Error(`Invalid data URI format (no comma separator): ${dataUri.substring(0, 50)}...`);
   }
 
-  const base64Part = parts[1];
+  // Extract everything after the first comma
+  const base64Part = dataUri.substring(commaIndex + 1);
+
   if (!base64Part || base64Part.length === 0) {
-    throw new Error(`Empty base64 data in URI: ${dataUri}`);
+    throw new Error(`Empty base64 data in URI: ${dataUri.substring(0, 50)}...`);
   }
 
   return base64Part;

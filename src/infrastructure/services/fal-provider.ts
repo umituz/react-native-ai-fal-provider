@@ -140,6 +140,7 @@ export class FalProvider implements IAIProvider {
     storeRequest(key, { promise, abortController, createdAt: Date.now() });
 
     // Execute the actual operation and resolve/reject the stored promise
+    // Note: This promise chain is not awaited - it runs independently
     executeWithCostTracking({
       tracker,
       model,
@@ -149,11 +150,9 @@ export class FalProvider implements IAIProvider {
     })
       .then((res) => {
         resolvePromise(res.result);
-        return res.result;
       })
       .catch((error) => {
         rejectPromise(error);
-        throw error;
       })
       .finally(() => {
         try {

@@ -86,11 +86,11 @@ export function storeRequest<T>(key: string, request: ActiveRequest<T>): void {
   const maxRetries = 10;
   let retries = 0;
 
-  // Spin-wait with small delay between retries
+  // Spin-wait loop (synchronous)
+  // Note: Does NOT yield to event loop - tight loop
+  // In practice, this rarely loops due to single-threaded nature of React Native
   while (!acquireLock() && retries < maxRetries) {
     retries++;
-    // Yield to event loop between retries
-    // In practice, this rarely loops due to single-threaded nature
   }
 
   if (retries >= maxRetries) {

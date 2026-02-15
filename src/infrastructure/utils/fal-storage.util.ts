@@ -43,9 +43,48 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
 
 /**
  * Upload multiple images to FAL storage in parallel
+ * Uses Promise.allSettled to handle partial failures gracefully
+ * @throws {Error} if any upload fails, with details about all failures
+ * Note: Successful uploads before the first failure are NOT cleaned up automatically
+ * as FAL storage doesn't provide a delete API. Monitor orphaned uploads externally.
  */
 export async function uploadMultipleToFalStorage(
   images: string[],
 ): Promise<string[]> {
-  return Promise.all(images.map(uploadToFalStorage));
+  const results = await Promise.allSettled(images.map(uploadToFalStorage));
+
+  const successfulUploads: string[] = [];
+  const failures: Array<{ index: number; error: unknown }> = [];
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      successfulUploads.push(result.value);
+    } else {
+      failures.push({ index, error: result.reason });
+    }
+  });
+
+  // If any upload failed, throw detailed error
+  if (failures.length > 0) {
+    const errorMessage = failures
+      .map(({ index, error }) =>
+        `Image ${index}: ${error instanceof Error ? error.message : String(error)}`
+      )
+      .join('; ');
+
+    // Log warning about orphaned uploads
+    if (successfulUploads.length > 0) {
+      console.warn(
+        `[fal-storage] ${successfulUploads.length} upload(s) succeeded before failure. ` +
+        'These files remain in FAL storage and may need manual cleanup:',
+        successfulUploads
+      );
+    }
+
+    throw new Error(
+      `Failed to upload ${failures.length} of ${images.length} image(s): ${errorMessage}`
+    );
+  }
+
+  return successfulUploads;
 }

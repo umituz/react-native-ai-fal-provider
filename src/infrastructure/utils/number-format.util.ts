@@ -20,25 +20,41 @@ export function formatNumber(value: number, decimals: number = 2): string {
 }
 
 /**
- * Format currency amount
- */
-export function formatCurrency(amount: number, currency: string = "USD"): string {
-  const formatted = formatNumber(amount, 2);
-  return `${currency} ${formatted}`;
-}
-
-/**
  * Format bytes to human-readable size
+ * Handles edge cases: negative bytes, NaN, Infinity, extremely large values
  */
 export function formatBytes(bytes: number, decimals: number = 2): string {
-  if (bytes === 0) return "0 Bytes";
+  // Handle invalid inputs
+  if (!Number.isFinite(bytes) || Number.isNaN(bytes)) {
+    return "0 Bytes";
+  }
+
+  // Handle negative bytes
+  if (bytes < 0) {
+    return `-${formatBytes(-bytes, decimals)}`;
+  }
+
+  // Handle zero
+  if (bytes === 0) {
+    return "0 Bytes";
+  }
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+  // Clamp index to valid range
+  const index = Math.min(i, sizes.length - 1);
+
+  // For extremely large values beyond our size array
+  if (index >= sizes.length - 1 && i > sizes.length - 1) {
+    const exponent = i - (sizes.length - 1);
+    const value = bytes / Math.pow(k, sizes.length - 1);
+    return `${parseFloat(value.toFixed(dm))} ${sizes[sizes.length - 1]} × ${k}^${exponent}`;
+  }
+
+  return `${parseFloat((bytes / Math.pow(k, index)).toFixed(dm))} ${sizes[index]}`;
 }
 
 /**
@@ -67,13 +83,4 @@ export function formatDuration(milliseconds: number): string {
   return remainingMinutes > 0
     ? `${hours}h ${remainingMinutes}m`
     : `${hours}h`;
-}
-
-/**
- * Format percentage
- */
-export function formatPercentage(value: number, decimals: number = 1): string {
-  if (value < 0) return "0%";
-  if (value > 100) return "100%";
-  return `${formatNumber(value, decimals)}%`;
 }

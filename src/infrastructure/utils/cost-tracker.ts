@@ -11,7 +11,9 @@ import type {
 import { findModelById } from "../../domain/constants/default-models.constants";
 import { filterByProperty, filterByTimeRange } from "./collection-filters.util";
 
-interface CostSummary {
+export type { GenerationCost } from "../../domain/entities/cost-tracking.types";
+
+export interface CostSummary {
   totalEstimatedCost: number;
   totalActualCost: number;
   currency: string;

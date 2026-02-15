@@ -90,18 +90,61 @@ export async function preprocessInput(
       throw new Error('image_urls array must contain at least one valid image URL');
     }
 
-    // Wait for all uploads and build the final array
-    // Tasks are already in correct order from the loop, no need to sort
-    const processedUrls = await Promise.all(
+    // Wait for all uploads using Promise.allSettled to handle failures gracefully
+    // This ensures all uploads complete before reporting errors
+    const uploadResults = await Promise.allSettled(
       uploadTasks.map((task) => Promise.resolve(task.url))
     );
+
+    const processedUrls: string[] = [];
+    const uploadErrors: string[] = [];
+
+    uploadResults.forEach((result, index) => {
+      if (result.status === 'fulfilled') {
+        processedUrls.push(result.value);
+      } else {
+        uploadErrors.push(
+          `Upload ${index} failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`
+        );
+      }
+    });
+
+    // If any uploads failed, throw with details
+    if (uploadErrors.length > 0) {
+      console.warn(
+        `[input-preprocessor] ${processedUrls.length} of ${uploadTasks.length} uploads succeeded. ` +
+        'Successful uploads remain in FAL storage.'
+      );
+      throw new Error(`Image upload failures:\n${uploadErrors.join('\n')}`);
+    }
 
     result.image_urls = processedUrls;
   }
 
   // Wait for ALL uploads to complete (both individual keys and array)
+  // Use Promise.allSettled to handle partial failures gracefully
   if (uploadPromises.length > 0) {
-    await Promise.all(uploadPromises);
+    const individualUploadResults = await Promise.allSettled(uploadPromises);
+
+    const failedUploads = individualUploadResults.filter(
+      (result) => result.status === 'rejected'
+    );
+
+    if (failedUploads.length > 0) {
+      const successCount = individualUploadResults.length - failedUploads.length;
+      console.warn(
+        `[input-preprocessor] ${successCount} of ${individualUploadResults.length} individual field uploads succeeded. ` +
+        'Successful uploads remain in FAL storage.'
+      );
+
+      const errorMessages = failedUploads.map((result) =>
+        result.status === 'rejected'
+          ? (result.reason instanceof Error ? result.reason.message : String(result.reason))
+          : 'Unknown error'
+      );
+
+      throw new Error(`Some image uploads failed:\n${errorMessages.join('\n')}`);
+    }
   }
 
   return result;

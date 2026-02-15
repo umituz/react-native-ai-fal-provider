@@ -5,4 +5,3 @@
 
 export * from './timing-helpers.util';
 export * from './object-helpers.util';
-export * from './function-helpers.util';

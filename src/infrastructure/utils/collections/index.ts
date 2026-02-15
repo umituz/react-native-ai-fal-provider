@@ -5,4 +5,3 @@
 
 export * from './array-filters.util';
 export * from './array-sorters.util';
-export * from './array-reducers.util';

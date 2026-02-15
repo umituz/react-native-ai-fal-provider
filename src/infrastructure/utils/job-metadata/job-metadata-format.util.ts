@@ -7,12 +7,37 @@ import type { FalJobMetadata } from "./job-metadata.types";
 
 /**
  * Get job duration in milliseconds
+ * Returns null if job not completed or if dates are invalid
  */
 export function getJobDuration(metadata: FalJobMetadata): number | null {
   if (!metadata.completedAt) {
     return null;
   }
-  return new Date(metadata.completedAt).getTime() - new Date(metadata.createdAt).getTime();
+
+  const completedTime = new Date(metadata.completedAt).getTime();
+  const createdTime = new Date(metadata.createdAt).getTime();
+
+  // Validate both dates parsed correctly
+  if (isNaN(completedTime) || isNaN(createdTime)) {
+    console.warn(
+      '[job-metadata] Invalid date(s) in metadata:',
+      { completedAt: metadata.completedAt, createdAt: metadata.createdAt }
+    );
+    return null;
+  }
+
+  const duration = completedTime - createdTime;
+
+  // Sanity check: duration should be positive
+  if (duration < 0) {
+    console.warn(
+      '[job-metadata] Negative duration detected (completedAt < createdAt):',
+      { duration, completedAt: metadata.completedAt, createdAt: metadata.createdAt }
+    );
+    return null;
+  }
+
+  return duration;
 }
 
 /**
