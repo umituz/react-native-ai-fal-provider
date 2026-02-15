@@ -10,7 +10,7 @@ import { DEFAULT_FAL_CONFIG } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { validateNSFWContent } from "../validators/nsfw-validator";
 import { NSFWContentError } from "./nsfw-content-error";
-import { parseFalError } from "../utils/error-mapper";
+import { parseFalError } from "../utils/fal-error-handler.util";
 
 /**
  * Handle FAL subscription with timeout and cancellation

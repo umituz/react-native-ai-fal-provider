@@ -11,7 +11,7 @@ export {
   sortByDateAscending,
   sortByNumberDescending,
   sortByNumberAscending,
-} from "./collection-filters.util";
+} from "./collections";
 
 export {
   safeJsonParse,
@@ -19,7 +19,7 @@ export {
   safeJsonStringify,
   isValidJson,
   validateObjectStructure,
-} from "./data-parsers.util";
+} from "./parsers";
 
 export { categorizeFalError } from "./error-categorizer";
 export {
@@ -27,20 +27,16 @@ export {
   parseFalError,
   isFalErrorRetryable,
   extractStatusCode,
-} from "./error-mapper";
+} from "./fal-error-handler.util";
 
-export {
-  formatNumber,
-  formatBytes,
-  formatDuration,
-  formatDate,
-  truncateText,
-} from "./formatting.util";
+export { formatDate } from "./date-format.util";
+export { formatNumber, formatBytes, formatDuration } from "./number-format.util";
+export { truncateText } from "./string-format.util";
 
 export {
   buildSingleImageInput,
   buildDualImageInput,
-} from "./input-builders.util";
+} from "./base-builders.util";
 
 export {
   isFalModelType,
@@ -52,7 +48,7 @@ export {
   isValidPrompt,
   isValidTimeout,
   isValidRetryCount,
-} from "./type-guards.util";
+} from "./type-guards";
 
 export {
   formatImageDataUri,
@@ -77,7 +73,7 @@ export {
   removeNullish,
   generateUniqueId,
   sleep,
-} from "./general-helpers.util";
+} from "./helpers";
 
 export { preprocessInput } from "./input-preprocessor.util";
 export { validateInput } from "./input-validator.util";

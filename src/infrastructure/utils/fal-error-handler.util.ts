@@ -5,7 +5,7 @@
 
 import type { FalErrorInfo, FalErrorCategory, FalErrorType } from "../../domain/entities/error.types";
 import { FalErrorType as ErrorTypeEnum } from "../../domain/entities/error.types";
-import { safeJsonParseOrNull } from "./data-parsers.util";
+import { safeJsonParseOrNull } from "./parsers";
 
 const STATUS_CODES = ["400", "401", "402", "403", "404", "422", "429", "500", "502", "503", "504"];
 

@@ -9,7 +9,7 @@ import type {
   ModelCostInfo,
 } from "../../domain/entities/cost-tracking.types";
 import { findModelById } from "../../domain/constants/default-models.constants";
-import { filterByProperty, filterByTimeRange } from "./collection-filters.util";
+import { filterByProperty, filterByTimeRange } from "./collections";
 
 export type { GenerationCost } from "../../domain/entities/cost-tracking.types";
 

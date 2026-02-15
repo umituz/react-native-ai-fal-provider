@@ -7,8 +7,6 @@ export {
   falProvider,
   falModelsService,
   NSFWContentError,
-  cancelCurrentFalRequest,
-  hasRunningFalRequest,
   cleanupRequestStore,
   stopAutomaticCleanup,
 } from "../infrastructure/services";

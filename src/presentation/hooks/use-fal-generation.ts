@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { falProvider } from "../../infrastructure/services/fal-provider";
-import { mapFalError } from "../../infrastructure/utils/error-mapper";
+import { mapFalError } from "../../infrastructure/utils/fal-error-handler.util";
 import { FalGenerationStateManager } from "../../infrastructure/utils/fal-generation-state-manager.util";
 import type { FalJobInput, FalQueueStatus } from "../../domain/entities/fal.types";
 import type { FalErrorInfo } from "../../domain/entities/error.types";

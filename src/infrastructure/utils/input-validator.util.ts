@@ -3,7 +3,7 @@
  * Validates input parameters before API calls
  */
 
-import { isValidModelId, isValidPrompt } from "./type-guards.util";
+import { isValidModelId, isValidPrompt } from "./type-guards";
 
 /**
  * Detect potentially malicious content in strings

@@ -16,4 +16,4 @@ export * from "./exports/presentation";
 export {
   createAiProviderInitModule,
   type AiProviderInitModuleConfig,
-} from './init';
+} from './init/createAiProviderInitModule';

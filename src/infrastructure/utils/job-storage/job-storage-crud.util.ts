@@ -6,7 +6,7 @@
 import type { FalJobMetadata } from "../job-metadata";
 import { updateJobMetadata } from "../job-metadata";
 import type { IJobStorage } from "./job-storage-interface";
-import { safeJsonParseOrNull, safeJsonStringify } from "../data-parsers.util";
+import { safeJsonParseOrNull, safeJsonStringify } from "../parsers";
 
 /**
  * Save job metadata to storage

@@ -6,7 +6,7 @@
 import type { FalJobMetadata } from "../job-metadata";
 import type { IJobStorage } from "./job-storage-interface";
 import { deleteJobMetadata } from "./job-storage-crud.util";
-import { safeJsonParseOrNull } from "../data-parsers.util";
+import { safeJsonParseOrNull } from "../parsers";
 
 /**
  * Load all jobs from storage
