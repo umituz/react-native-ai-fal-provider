@@ -6,16 +6,59 @@
 import { isValidModelId, isValidPrompt } from "./type-guards.util";
 
 /**
- * Basic HTML/Script tag sanitization (defense in depth)
- * NOTE: This is sent to backend which should also sanitize,
- * but we apply basic filtering as a precaution
+ * Detect potentially malicious content in strings
+ * Returns true if suspicious patterns are found
  */
-function sanitizeString(value: string): string {
-  // Remove potential script tags and HTML entities
-  return value
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<[^>]*>/g, '')
-    .trim();
+function hasSuspiciousContent(value: string): boolean {
+  const suspiciousPatterns = [
+    /<script/i,                    // Script tags
+    /javascript:/i,                // javascript: protocol
+    /on\w+\s*=/i,                  // Event handlers (onclick=, onerror=, etc.)
+    /<iframe/i,                    // iframes
+    /<embed/i,                     // embed tags
+    /<object/i,                    // object tags
+    /data:(?!image\/)/i,          // data URLs that aren't images
+    /vbscript:/i,                  // vbscript protocol
+    /file:/i,                      // file protocol
+  ];
+
+  return suspiciousPatterns.some(pattern => pattern.test(value));
+}
+
+/**
+ * Validate URL format and protocol
+ * Rejects malicious URLs and unsafe protocols
+ */
+function isValidAndSafeUrl(value: string): boolean {
+  // Allow http/https URLs
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    try {
+      const url = new URL(value);
+      // Reject URLs with @ (potential auth bypass: http://attacker.com@internal.server/)
+      if (url.href.includes('@') && url.username) {
+        return false;
+      }
+      // Ensure domain exists
+      if (!url.hostname || url.hostname.length === 0) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // Allow base64 image data URIs only
+  if (value.startsWith('data:image/')) {
+    // Check for suspicious content in data URI
+    const dataContent = value.substring(0, 200); // Check first 200 chars
+    if (hasSuspiciousContent(dataContent)) {
+      return false;
+    }
+    return true;
+  }
+
+  return false;
 }
 
 export interface ValidationError {
@@ -55,7 +98,7 @@ export function validateInput(
     errors.push({ field: "input", message: "Input must be a non-empty object" });
   }
 
-  // Validate and sanitize prompt if present
+  // Validate and check prompt for malicious content
   if (input.prompt !== undefined) {
     if (!isValidPrompt(input.prompt)) {
       errors.push({
@@ -63,15 +106,17 @@ export function validateInput(
         message: "Prompt must be a non-empty string (max 5000 characters)",
       });
     } else if (typeof input.prompt === "string") {
-      // Apply basic sanitization (defense in depth)
-      const sanitized = sanitizeString(input.prompt);
-      if (sanitized !== input.prompt) {
-        console.warn('[input-validator] Potentially unsafe content detected and sanitized in prompt');
+      // Check for suspicious content (defense in depth)
+      if (hasSuspiciousContent(input.prompt)) {
+        errors.push({
+          field: "prompt",
+          message: "Prompt contains potentially unsafe content (script tags, event handlers, or suspicious protocols)",
+        });
       }
     }
   }
 
-  // Validate and sanitize negative_prompt if present
+  // Validate and check negative_prompt for malicious content
   if (input.negative_prompt !== undefined) {
     if (!isValidPrompt(input.negative_prompt)) {
       errors.push({
@@ -79,10 +124,12 @@ export function validateInput(
         message: "Negative prompt must be a non-empty string (max 5000 characters)",
       });
     } else if (typeof input.negative_prompt === "string") {
-      // Apply basic sanitization (defense in depth)
-      const sanitized = sanitizeString(input.negative_prompt);
-      if (sanitized !== input.negative_prompt) {
-        console.warn('[input-validator] Potentially unsafe content detected and sanitized in negative_prompt');
+      // Check for suspicious content (defense in depth)
+      if (hasSuspiciousContent(input.negative_prompt)) {
+        errors.push({
+          field: "negative_prompt",
+          message: "Negative prompt contains potentially unsafe content (script tags, event handlers, or suspicious protocols)",
+        });
       }
     }
   }
@@ -110,15 +157,11 @@ export function validateInput(
           field,
           message: `${field} cannot be empty`,
         });
-      } else {
-        const isValidUrl = value.startsWith('http://') || value.startsWith('https://');
-        const isValidBase64 = value.startsWith('data:image/');
-        if (!isValidUrl && !isValidBase64) {
-          errors.push({
-            field,
-            message: `${field} must be a valid URL or base64 data URI`,
-          });
-        }
+      } else if (!isValidAndSafeUrl(value)) {
+        errors.push({
+          field,
+          message: `${field} must be a valid and safe URL (http/https) or image data URI. Suspicious content or unsafe protocols detected.`,
+        });
       }
     }
   }

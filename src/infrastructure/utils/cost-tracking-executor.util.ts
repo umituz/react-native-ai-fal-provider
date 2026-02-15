@@ -36,15 +36,26 @@ export async function executeWithCostTracking<T>(
       tracker.completeOperation(operationId, model, operation, requestId);
     } catch (costError) {
       // Cost tracking failure shouldn't break the operation
-      // Log for debugging but don't throw
+      // Log for debugging and audit trail
+      console.error(
+        `[cost-tracking] Failed to complete cost tracking for ${operation} on ${model}:`,
+        costError instanceof Error ? costError.message : String(costError),
+        { operationId, model, operation }
+      );
     }
 
     return result;
   } catch (error) {
     try {
       tracker.failOperation(operationId);
-    } catch {
-      // Cost tracking cleanup failure on error path - ignore
+    } catch (failError) {
+      // Cost tracking cleanup failure on error path
+      // Log for debugging and audit trail
+      console.error(
+        `[cost-tracking] Failed to mark operation as failed for ${operation} on ${model}:`,
+        failError instanceof Error ? failError.message : String(failError),
+        { operationId, model, operation }
+      );
     }
     throw error;
   }

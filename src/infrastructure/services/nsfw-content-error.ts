@@ -12,7 +12,7 @@ export class NSFWContentError extends Error {
 
   constructor(message?: string) {
     super(
-      message ||
+      message ??
         "The generated content was flagged as inappropriate. Please try a different prompt."
     );
     this.name = "NSFWContentError";

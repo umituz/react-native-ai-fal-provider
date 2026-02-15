@@ -4,12 +4,16 @@
  */
 
 import type { FalModelConfig } from "../constants/default-models.constants";
+import type { FalModelType } from "../entities/fal.types";
 
-export type ModelType =
-  | "text-to-image"
-  | "text-to-video"
-  | "image-to-video"
-  | "text-to-voice";
+/**
+ * Public API model types (subset of FalModelType)
+ * UI components support these core model types
+ */
+export type ModelType = Extract<
+  FalModelType,
+  "text-to-image" | "text-to-video" | "image-to-video" | "text-to-voice"
+>;
 
 /**
  * Configuration for model selection behavior

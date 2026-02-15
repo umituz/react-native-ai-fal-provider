@@ -12,7 +12,12 @@ export function safeJsonParse<T = unknown>(
 ): T {
   try {
     return JSON.parse(data) as T;
-  } catch {
+  } catch (error) {
+    console.warn(
+      '[json-parsers] Failed to parse JSON, using fallback:',
+      error instanceof Error ? error.message : String(error),
+      { dataPreview: data.substring(0, 100) }
+    );
     return fallback;
   }
 }
@@ -23,7 +28,12 @@ export function safeJsonParse<T = unknown>(
 export function safeJsonParseOrNull<T = unknown>(data: string): T | null {
   try {
     return JSON.parse(data) as T;
-  } catch {
+  } catch (error) {
+    console.warn(
+      '[json-parsers] Failed to parse JSON, returning null:',
+      error instanceof Error ? error.message : String(error),
+      { dataPreview: data.substring(0, 100) }
+    );
     return null;
   }
 }
@@ -37,7 +47,12 @@ export function safeJsonStringify(
 ): string {
   try {
     return JSON.stringify(data);
-  } catch {
+  } catch (error) {
+    console.warn(
+      '[json-parsers] Failed to stringify object, using fallback:',
+      error instanceof Error ? error.message : String(error),
+      { dataType: typeof data }
+    );
     return fallback;
   }
 }
@@ -50,6 +65,7 @@ export function isValidJson(data: string): boolean {
     JSON.parse(data);
     return true;
   } catch {
+    // Don't log here - this is expected to fail for validation checks
     return false;
   }
 }

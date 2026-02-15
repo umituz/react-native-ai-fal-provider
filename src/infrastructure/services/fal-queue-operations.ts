@@ -61,7 +61,14 @@ export async function getJobResult<T = unknown>(model: string, requestId: string
 
   if (!result || typeof result !== 'object') {
     throw new Error(
-      `Invalid FAL queue result for model ${model}, requestId ${requestId}`
+      `Invalid FAL queue result for model ${model}, requestId ${requestId}: Result is not an object`
+    );
+  }
+
+  // Type guard: ensure result.data exists before casting
+  if (!('data' in result)) {
+    throw new Error(
+      `Invalid FAL queue result for model ${model}, requestId ${requestId}: Missing 'data' property`
     );
   }
 

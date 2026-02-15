@@ -26,6 +26,7 @@ export function filterByPredicate<T>(
 
 /**
  * Filter array by time range (timestamp property)
+ * Validates that the timestamp property is actually a number before comparison
  */
 export function filterByTimeRange<T>(
   items: readonly T[],
@@ -34,7 +35,17 @@ export function filterByTimeRange<T>(
   endTime: number
 ): T[] {
   return items.filter((item) => {
-    const timestamp = item[timestampProperty] as unknown as number;
+    const timestamp = item[timestampProperty];
+
+    // Type guard: ensure timestamp is actually a number
+    if (typeof timestamp !== 'number') {
+      console.warn(
+        `[array-filters] Skipping item with non-numeric timestamp property '${String(timestampProperty)}':`,
+        typeof timestamp
+      );
+      return false;
+    }
+
     return timestamp >= startTime && timestamp <= endTime;
   });
 }

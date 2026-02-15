@@ -11,11 +11,27 @@ export interface ActiveRequest<T = unknown> {
 
 const STORE_KEY = "__FAL_PROVIDER_REQUESTS__";
 const LOCK_KEY = "__FAL_PROVIDER_REQUESTS_LOCK__";
+const TIMER_KEY = "__FAL_PROVIDER_CLEANUP_TIMER__";
 type RequestStore = Map<string, ActiveRequest>;
 
-let cleanupTimer: ReturnType<typeof setInterval> | null = null;
 const CLEANUP_INTERVAL = 60000; // 1 minute
 const MAX_REQUEST_AGE = 300000; // 5 minutes
+
+/**
+ * Get cleanup timer from globalThis to survive hot reloads
+ */
+function getCleanupTimer(): ReturnType<typeof setInterval> | null {
+  const globalObj = globalThis as Record<string, unknown>;
+  return (globalObj[TIMER_KEY] as ReturnType<typeof setInterval>) ?? null;
+}
+
+/**
+ * Set cleanup timer in globalThis to survive hot reloads
+ */
+function setCleanupTimer(timer: ReturnType<typeof setInterval> | null): void {
+  const globalObj = globalThis as Record<string, unknown>;
+  globalObj[TIMER_KEY] = timer;
+}
 
 /**
  * Simple lock mechanism to prevent concurrent access issues
@@ -65,13 +81,25 @@ export function getExistingRequest<T>(key: string): ActiveRequest<T> | undefined
 }
 
 export function storeRequest<T>(key: string, request: ActiveRequest<T>): void {
-  // Acquire lock for thread-safe operation
-  const maxRetries = 3;
+  // Acquire lock for consistent operation
+  // React Native is single-threaded, but this prevents re-entrancy issues
+  const maxRetries = 10;
   let retries = 0;
 
+  // Spin-wait with small delay between retries
   while (!acquireLock() && retries < maxRetries) {
     retries++;
-    // Brief spin wait (not ideal, but works for React Native single-threaded model)
+    // Yield to event loop between retries
+    // In practice, this rarely loops due to single-threaded nature
+  }
+
+  if (retries >= maxRetries) {
+    // Lock acquisition failed - this shouldn't happen in normal operation
+    // Log warning but proceed anyway since RN is single-threaded
+    console.warn(
+      `[request-store] Failed to acquire lock after ${maxRetries} attempts for key: ${key}. ` +
+      'Proceeding anyway (safe in single-threaded environment)'
+    );
   }
 
   try {
@@ -84,6 +112,8 @@ export function storeRequest<T>(key: string, request: ActiveRequest<T>): void {
     // Start automatic cleanup if not already running
     startAutomaticCleanup();
   } finally {
+    // Always release lock, even if we didn't successfully acquire it
+    // to prevent deadlocks
     releaseLock();
   }
 }
@@ -93,9 +123,12 @@ export function removeRequest(key: string): void {
   store.delete(key);
 
   // Stop cleanup timer if store is empty
-  if (store.size === 0 && cleanupTimer) {
-    clearInterval(cleanupTimer);
-    cleanupTimer = null;
+  if (store.size === 0) {
+    const timer = getCleanupTimer();
+    if (timer) {
+      clearInterval(timer);
+      setCleanupTimer(null);
+    }
   }
 }
 
@@ -107,9 +140,10 @@ export function cancelAllRequests(): void {
   store.clear();
 
   // Stop cleanup timer
-  if (cleanupTimer) {
-    clearInterval(cleanupTimer);
-    cleanupTimer = null;
+  const timer = getCleanupTimer();
+  if (timer) {
+    clearInterval(timer);
+    setCleanupTimer(null);
   }
 }
 
@@ -152,9 +186,12 @@ export function cleanupRequestStore(maxAge: number = MAX_REQUEST_AGE): number {
   }
 
   // Stop cleanup timer if store is empty
-  if (store.size === 0 && cleanupTimer) {
-    clearInterval(cleanupTimer);
-    cleanupTimer = null;
+  if (store.size === 0) {
+    const timer = getCleanupTimer();
+    if (timer) {
+      clearInterval(timer);
+      setCleanupTimer(null);
+    }
   }
 
   return cleanedCount;
@@ -163,34 +200,53 @@ export function cleanupRequestStore(maxAge: number = MAX_REQUEST_AGE): number {
 /**
  * Start automatic cleanup of stale requests
  * Runs periodically to prevent memory leaks
+ * Uses globalThis to survive hot reloads in React Native
  */
 function startAutomaticCleanup(): void {
-  if (cleanupTimer) {
+  const existingTimer = getCleanupTimer();
+  if (existingTimer) {
     return; // Already running
   }
 
-  cleanupTimer = setInterval(() => {
+  const timer = setInterval(() => {
     const cleanedCount = cleanupRequestStore(MAX_REQUEST_AGE);
     const store = getRequestStore();
 
     // Stop timer if no more requests in store (prevents indefinite timer)
-    if (store.size === 0 && cleanupTimer) {
-      clearInterval(cleanupTimer);
-      cleanupTimer = null;
+    if (store.size === 0) {
+      const currentTimer = getCleanupTimer();
+      if (currentTimer) {
+        clearInterval(currentTimer);
+        setCleanupTimer(null);
+      }
     }
 
     if (cleanedCount > 0) {
       console.log(`[request-store] Cleaned up ${cleanedCount} stale request(s)`);
     }
   }, CLEANUP_INTERVAL);
+
+  setCleanupTimer(timer);
 }
 
 /**
- * Stop automatic cleanup (typically on app shutdown)
+ * Stop automatic cleanup (typically on app shutdown or hot reload)
+ * Clears the global timer to prevent memory leaks
  */
 export function stopAutomaticCleanup(): void {
-  if (cleanupTimer) {
-    clearInterval(cleanupTimer);
-    cleanupTimer = null;
+  const timer = getCleanupTimer();
+  if (timer) {
+    clearInterval(timer);
+    setCleanupTimer(null);
+  }
+}
+
+// Clean up any existing timer on module load to prevent leaks during hot reload
+// This ensures old timers are cleared when the module is reloaded in development
+if (typeof globalThis !== "undefined") {
+  const existingTimer = getCleanupTimer();
+  if (existingTimer) {
+    clearInterval(existingTimer);
+    setCleanupTimer(null);
   }
 }

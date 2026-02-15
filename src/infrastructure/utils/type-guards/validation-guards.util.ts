@@ -40,11 +40,23 @@ export function isValidApiKey(value: unknown): boolean {
 
 /**
  * Validate model ID format
+ * Pattern: org/model or org/model/version
+ * Allows dots for versions (e.g., v1.5) but prevents path traversal (..)
  */
 const MODEL_ID_PATTERN = /^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+(\/[a-zA-Z0-9-_.]+)?$/;
 
 export function isValidModelId(value: unknown): boolean {
   if (typeof value !== "string") {
+    return false;
+  }
+
+  // Prevent path traversal attacks
+  if (value.includes('..')) {
+    return false;
+  }
+
+  // Ensure it doesn't start or end with dots
+  if (value.startsWith('.') || value.endsWith('.')) {
     return false;
   }
 

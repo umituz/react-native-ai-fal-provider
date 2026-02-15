@@ -55,28 +55,28 @@ export function getModelPricing(modelId: string): { freeUserCost: number; premiu
  * Returns the model's free user cost if available, otherwise returns the default cost for the type
  * NOTE: Use ?? instead of || to handle 0 values correctly (free models)
  */
-export function getModelCreditCost(modelId: string, modelType: ModelType): number {
+export function getModelCreditCost(modelId: string, modelType: FalModelType): number {
   const pricing = getModelPricing(modelId);
   // CRITICAL: Use !== undefined instead of truthy check
   // because freeUserCost can be 0 for free models!
   if (pricing && pricing.freeUserCost !== undefined) {
     return pricing.freeUserCost;
   }
-  return DEFAULT_CREDIT_COSTS[modelType];
+  return DEFAULT_CREDIT_COSTS[modelType] ?? 0;
 }
 
 /**
  * Get default credit cost for a model type
  */
-export function getDefaultCreditCost(modelType: ModelType): number {
-  return DEFAULT_CREDIT_COSTS[modelType];
+export function getDefaultCreditCost(modelType: FalModelType): number {
+  return DEFAULT_CREDIT_COSTS[modelType] ?? 0;
 }
 
 /**
  * Get default model ID for a model type
  */
-export function getDefaultModelId(modelType: ModelType): string {
-  return DEFAULT_MODEL_IDS[modelType];
+export function getDefaultModelId(modelType: FalModelType): string {
+  return DEFAULT_MODEL_IDS[modelType] ?? "";
 }
 
 /**
@@ -110,7 +110,8 @@ export function getModelSelectionData(
   modelType: ModelType,
   config?: ModelSelectionConfig
 ): ModelSelectionResult {
-  const models = getModels(modelType as FalModelType);
+  // ModelType is now a subset of FalModelType, so this cast is safe
+  const models = getModels(modelType);
   const defaultCreditCost = config?.defaultCreditCost ?? getDefaultCreditCost(modelType);
   const defaultModelId = config?.defaultModelId ?? getDefaultModelId(modelType);
   const selectedModel = selectInitialModel(models, config, modelType);

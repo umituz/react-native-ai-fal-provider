@@ -68,22 +68,22 @@ export async function retry<T>(
     shouldRetry = () => true,
   } = options;
 
-  let lastError: unknown;
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await func();
     } catch (error) {
-      lastError = error;
-
+      // On last attempt or non-retryable error, throw immediately
       if (attempt === maxRetries || !shouldRetry(error)) {
         throw error;
       }
 
+      // Calculate exponential backoff delay
       const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
       await sleep(delay);
     }
   }
 
-  throw lastError;
+  // This line is unreachable but required by TypeScript
+  // The loop always returns or throws on the last iteration
+  throw new Error('Retry loop completed without result (should not happen)');
 }

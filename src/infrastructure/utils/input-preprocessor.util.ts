@@ -85,11 +85,15 @@ export async function preprocessInput(
       throw new Error(`Image URL validation failed:\n${errors.join('\n')}`);
     }
 
-    // Wait for all uploads and build the final array without sparse elements
+    // Validate that we have at least one valid image URL
+    if (uploadTasks.length === 0) {
+      throw new Error('image_urls array must contain at least one valid image URL');
+    }
+
+    // Wait for all uploads and build the final array
+    // Tasks are already in correct order from the loop, no need to sort
     const processedUrls = await Promise.all(
-      uploadTasks
-        .sort((a, b) => a.index - b.index)
-        .map((task) => Promise.resolve(task.url))
+      uploadTasks.map((task) => Promise.resolve(task.url))
     );
 
     result.image_urls = processedUrls;

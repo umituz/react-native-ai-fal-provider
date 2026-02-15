@@ -4,7 +4,6 @@
  */
 
 import type { FalModelType } from "../entities/fal.types";
-import type { ModelType } from "../types/model-selection.types";
 import { DEFAULT_TEXT_TO_IMAGE_MODELS } from "./models/text-to-image.models";
 import { DEFAULT_TEXT_TO_VOICE_MODELS } from "./models/text-to-voice.models";
 import { DEFAULT_TEXT_TO_VIDEO_MODELS } from "./models/text-to-video.models";
@@ -34,22 +33,28 @@ export interface FalModelConfig {
 
 /**
  * Default credit costs for each model type
+ * Supports all FalModelType values
  */
-export const DEFAULT_CREDIT_COSTS: Record<ModelType, number> = {
+export const DEFAULT_CREDIT_COSTS: Record<FalModelType, number> = {
   "text-to-image": 2,
   "text-to-video": 20,
   "image-to-video": 20,
   "text-to-voice": 3,
+  "image-to-image": 2,
+  "text-to-text": 1,
 } as const;
 
 /**
  * Default model IDs for each model type
+ * Supports all FalModelType values
  */
-export const DEFAULT_MODEL_IDS: Record<ModelType, string> = {
+export const DEFAULT_MODEL_IDS: Record<FalModelType, string> = {
   "text-to-image": "fal-ai/flux/schnell",
   "text-to-video": "fal-ai/minimax-video",
   "image-to-video": "fal-ai/kling-video/v1.5/pro/image-to-video",
   "text-to-voice": "fal-ai/playai/tts/v3",
+  "image-to-image": "fal-ai/flux/schnell",
+  "text-to-text": "fal-ai/flux/schnell",
 } as const;
 
 /**
@@ -90,10 +95,14 @@ export function getDefaultModelsByType(type: FalModelType): FalModelConfig[] {
 
 /**
  * Get default model for a type
+ * Returns the model marked as default, or the first model, or undefined if no models exist
  */
 export function getDefaultModel(type: FalModelType): FalModelConfig | undefined {
   const models = getDefaultModelsByType(type);
-  return models.find((m) => m.isDefault) || models[0];
+  if (models.length === 0) {
+    return undefined;
+  }
+  return models.find((m) => m.isDefault) ?? models[0];
 }
 
 /**

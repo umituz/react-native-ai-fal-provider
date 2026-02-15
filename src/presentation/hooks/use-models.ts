@@ -35,13 +35,21 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Memoize config to prevent unnecessary re-renders when parent re-renders
+  // Only recreate when actual config values change
+  const memoizedConfig = useMemo(() => config, [
+    config?.initialModelId,
+    config?.defaultCreditCost,
+    config?.defaultModelId,
+  ]);
+
   // Direct effect - no intermediate callback needed
   useEffect(() => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const selectionData = falModelsService.getModelSelectionData(type, config);
+      const selectionData = falModelsService.getModelSelectionData(type, memoizedConfig);
       setModels(selectionData.models);
       setSelectedModel(selectionData.selectedModel);
     } catch (err) {
@@ -49,7 +57,7 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [type, config]); // Direct dependencies
+  }, [type, memoizedConfig]);
 
   // Separate refresh callback for manual reloads
   const loadModels = useCallback(() => {
@@ -57,7 +65,7 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
     setError(null);
 
     try {
-      const selectionData = falModelsService.getModelSelectionData(type, config);
+      const selectionData = falModelsService.getModelSelectionData(type, memoizedConfig);
       setModels(selectionData.models);
       setSelectedModel(selectionData.selectedModel);
     } catch (err) {
@@ -65,7 +73,7 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [type, config]);
+  }, [type, memoizedConfig]);
 
   const selectModel = useCallback(
     (modelId: string) => {

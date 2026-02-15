@@ -126,15 +126,17 @@ export class FalProvider implements IAIProvider {
     const abortController = new AbortController();
     const tracker = this.costTracker;
 
-    // Store promise immediately BEFORE creating it to prevent race condition
-    // Multiple simultaneous calls with same params will get the same promise
-    let resolvePromise: (value: T) => void;
-    let rejectPromise: (error: unknown) => void;
+    // Create promise with resolvers using definite assignment
+    // This prevents race conditions and ensures type safety
+    let resolvePromise!: (value: T) => void;
+    let rejectPromise!: (error: unknown) => void;
     const promise = new Promise<T>((resolve, reject) => {
       resolvePromise = resolve;
       rejectPromise = reject;
     });
 
+    // Store promise immediately to enable request deduplication
+    // Multiple simultaneous calls with same params will get the same promise
     storeRequest(key, { promise, abortController, createdAt: Date.now() });
 
     // Execute the actual operation and resolve/reject the stored promise
@@ -146,11 +148,11 @@ export class FalProvider implements IAIProvider {
       getRequestId: (res) => res.requestId ?? undefined,
     })
       .then((res) => {
-        resolvePromise!(res.result);
+        resolvePromise(res.result);
         return res.result;
       })
       .catch((error) => {
-        rejectPromise!(error);
+        rejectPromise(error);
         throw error;
       })
       .finally(() => {
