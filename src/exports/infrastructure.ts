@@ -21,6 +21,35 @@ export {
   buildDualImageInput,
 } from "../infrastructure/utils";
 
+// Error handling utilities
+export {
+  getErrorMessage,
+  getErrorMessageOr,
+  formatErrorMessage,
+} from "../infrastructure/utils/helpers/error-helpers.util";
+
+// Image field constants
+export {
+  IMAGE_URL_FIELDS,
+  isImageField,
+} from "../infrastructure/utils/constants/image-fields.constants";
+export type {
+  ImageUrlField,
+} from "../infrastructure/utils/constants/image-fields.constants";
+
+// Validators
+export {
+  isDataUri,
+  isBase64DataUri,
+  extractMimeType,
+  extractBase64Content,
+} from "../infrastructure/utils/validators/data-uri-validator.util";
+export {
+  isEmptyString,
+  isNonEmptyString,
+  isString,
+} from "../infrastructure/utils/validators/string-validator.util";
+
 export { CostTracker } from "../infrastructure/utils/cost-tracker";
 
 export {
@@ -39,7 +68,6 @@ export {
   formatImageDataUri,
   extractBase64,
   getDataUriExtension,
-  isImageDataUri,
   uploadToFalStorage,
   uploadMultipleToFalStorage,
   formatNumber,

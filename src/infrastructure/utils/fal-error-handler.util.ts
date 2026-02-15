@@ -6,6 +6,7 @@
 import type { FalErrorInfo, FalErrorCategory, FalErrorType } from "../../domain/entities/error.types";
 import { FalErrorType as ErrorTypeEnum } from "../../domain/entities/error.types";
 import { safeJsonParseOrNull } from "./parsers";
+import { isNonEmptyString } from './validators/string-validator.util';
 
 const STATUS_CODES = ["400", "401", "402", "403", "404", "422", "429", "500", "502", "503", "504"];
 
@@ -130,7 +131,7 @@ export function mapFalError(error: unknown): FalErrorInfo {
  */
 export function parseFalError(error: unknown): string {
   const userMessage = parseFalApiError(error);
-  if (!userMessage || userMessage.trim().length === 0) {
+  if (!isNonEmptyString(userMessage)) {
     return "An unknown error occurred. Please try again.";
   }
   return userMessage;

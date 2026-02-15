@@ -8,6 +8,7 @@ import {
   base64ToTempFile,
   deleteTempFile,
 } from "@umituz/react-native-design-system/filesystem";
+import { getErrorMessage } from './helpers/error-helpers.util';
 
 /**
  * Upload base64 image to FAL storage
@@ -34,7 +35,7 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
       // Log cleanup errors to prevent disk space leaks
       console.warn(
         `[fal-storage] Failed to delete temp file: ${tempUri}`,
-        cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+        getErrorMessage(cleanupError)
       );
       // Don't throw - cleanup errors shouldn't fail the upload
     }
@@ -68,7 +69,7 @@ export async function uploadMultipleToFalStorage(
   if (failures.length > 0) {
     const errorMessage = failures
       .map(({ index, error }) =>
-        `Image ${index}: ${error instanceof Error ? error.message : String(error)}`
+        `Image ${index}: ${getErrorMessage(error)}`
       )
       .join('; ');
 

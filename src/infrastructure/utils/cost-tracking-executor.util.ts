@@ -4,6 +4,7 @@
  */
 
 import type { CostTracker } from "./cost-tracker";
+import { getErrorMessage } from './helpers/error-helpers.util';
 
 interface ExecuteWithCostTrackingOptions<T> {
   tracker: CostTracker | null;
@@ -39,7 +40,7 @@ export async function executeWithCostTracking<T>(
       // Log for debugging and audit trail
       console.error(
         `[cost-tracking] Failed to complete cost tracking for ${operation} on ${model}:`,
-        costError instanceof Error ? costError.message : String(costError),
+        getErrorMessage(costError),
         { operationId, model, operation }
       );
     }
@@ -53,7 +54,7 @@ export async function executeWithCostTracking<T>(
       // Log for debugging and audit trail
       console.error(
         `[cost-tracking] Failed to mark operation as failed for ${operation} on ${model}:`,
-        failError instanceof Error ? failError.message : String(failError),
+        getErrorMessage(failError),
         { operationId, model, operation }
       );
     }

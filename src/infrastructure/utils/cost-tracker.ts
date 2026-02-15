@@ -10,6 +10,7 @@ import type {
 } from "../../domain/entities/cost-tracking.types";
 import { findModelById } from "../../domain/constants/default-models.constants";
 import { filterByProperty, filterByTimeRange } from "./collections";
+import { getErrorMessage } from './helpers/error-helpers.util';
 
 export type { GenerationCost } from "../../domain/entities/cost-tracking.types";
 
@@ -61,7 +62,7 @@ export class CostTracker {
       // Log error but continue with default cost info
       console.warn(
         `[cost-tracker] Failed to get model cost info for ${modelId}:`,
-        error instanceof Error ? error.message : String(error)
+        getErrorMessage(error)
       );
     }
 

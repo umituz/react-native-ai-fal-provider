@@ -4,22 +4,9 @@
  */
 
 import { uploadToFalStorage } from "./fal-storage.util";
-
-const IMAGE_URL_KEYS = [
-  "image_url",
-  "second_image_url",
-  "third_image_url",
-  "fourth_image_url",
-  "driver_image_url",
-  "base_image_url",
-  "swap_image_url",
-  "mask_url",
-  "input_image_url",
-];
-
-function isBase64DataUri(value: unknown): value is string {
-  return typeof value === "string" && value.startsWith("data:image/");
-}
+import { getErrorMessage } from './helpers/error-helpers.util';
+import { IMAGE_URL_FIELDS } from './constants/image-fields.constants';
+import { isImageDataUri as isBase64DataUri } from './validators/data-uri-validator.util';
 
 /**
  * Preprocess input by uploading base64 images to FAL storage
@@ -32,7 +19,7 @@ export async function preprocessInput(
   const uploadPromises: Promise<unknown>[] = [];
 
   // Handle individual image URL keys
-  for (const key of IMAGE_URL_KEYS) {
+  for (const key of IMAGE_URL_FIELDS) {
     const value = result[key];
     if (isBase64DataUri(value)) {
       const uploadPromise = uploadToFalStorage(value)
@@ -41,7 +28,7 @@ export async function preprocessInput(
           return url;
         })
         .catch((error) => {
-          const errorMessage = `Failed to upload ${key}: ${error instanceof Error ? error.message : "Unknown error"}`;
+          const errorMessage = `Failed to upload ${key}: ${getErrorMessage(error)}`;
           console.error(`[preprocessInput] ${errorMessage}`);
           throw new Error(errorMessage);
         });
@@ -68,7 +55,7 @@ export async function preprocessInput(
         const uploadPromise = uploadToFalStorage(imageUrl)
           .then((url) => url)
           .catch((error) => {
-            const errorMessage = `Failed to upload image_urls[${i}]: ${error instanceof Error ? error.message : "Unknown error"}`;
+            const errorMessage = `Failed to upload image_urls[${i}]: ${getErrorMessage(error)}`;
             console.error(`[preprocessInput] ${errorMessage}`);
             errors.push(errorMessage);
             throw new Error(errorMessage);
@@ -104,7 +91,7 @@ export async function preprocessInput(
         processedUrls.push(result.value);
       } else {
         uploadErrors.push(
-          `Upload ${index} failed: ${result.reason instanceof Error ? result.reason.message : String(result.reason)}`
+          `Upload ${index} failed: ${getErrorMessage(result.reason)}`
         );
       }
     });
@@ -139,7 +126,7 @@ export async function preprocessInput(
 
       const errorMessages = failedUploads.map((result) =>
         result.status === 'rejected'
-          ? (result.reason instanceof Error ? result.reason.message : String(result.reason))
+          ? (getErrorMessage(result.reason))
           : 'Unknown error'
       );
 

@@ -31,7 +31,7 @@ export {
 
 export { formatDate } from "./date-format.util";
 export { formatNumber, formatBytes, formatDuration } from "./number-format.util";
-export { truncateText } from "./string-format.util";
+export { truncateText, truncatePrompt, sanitizePrompt } from "./string-format.util";
 
 export {
   buildSingleImageInput,
@@ -54,18 +54,12 @@ export {
   formatImageDataUri,
   extractBase64,
   getDataUriExtension,
-  isImageDataUri,
 } from "./image-helpers.util";
 
 export {
   uploadToFalStorage,
   uploadMultipleToFalStorage,
 } from "./fal-storage.util";
-
-export {
-  truncatePrompt,
-  sanitizePrompt,
-} from "./prompt-helpers.util";
 
 export {
   buildErrorMessage,

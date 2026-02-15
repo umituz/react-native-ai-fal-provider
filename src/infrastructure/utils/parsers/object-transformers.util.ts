@@ -3,6 +3,8 @@
  * Clone, merge, pick, and omit operations
  */
 
+import { getErrorMessage } from '../helpers/error-helpers.util';
+
 /**
  * Deep clone object using JSON serialization
  * NOTE: This has limitations:
@@ -20,7 +22,7 @@ export function deepClone<T>(data: T): T {
     // Fallback for circular references or other JSON errors
     console.warn(
       '[object-transformers] deepClone failed, returning original:',
-      error instanceof Error ? error.message : String(error)
+      getErrorMessage(error)
     );
     // Return original data if cloning fails
     return data;

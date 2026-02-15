@@ -45,10 +45,3 @@ export function getDataUriExtension(dataUri: string): string | null {
   const match = dataUri.match(/^data:image\/(\w+);base64/);
   return match ? match[1] : null;
 }
-
-/**
- * Check if data URI is an image
- */
-export function isImageDataUri(value: string): boolean {
-  return value.startsWith("data:image/");
-}

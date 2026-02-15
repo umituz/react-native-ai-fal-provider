@@ -10,6 +10,7 @@ import {
   MAX_TIMEOUT_MS,
   MAX_RETRY_COUNT,
 } from './constants';
+import { isNonEmptyString } from '../validators/string-validator.util';
 
 /**
  * Validate base64 image string
@@ -19,7 +20,7 @@ export function isValidBase64Image(value: unknown): boolean {
     return false;
   }
 
-  // Check data URI prefix
+  // Check data URI prefix - use direct check instead of type guard to avoid type narrowing issues
   if (value.startsWith("data:image/")) {
     const base64Part = value.split("base64,")[1];
     if (!base64Part) return false;
@@ -67,7 +68,9 @@ export function isValidModelId(value: unknown): boolean {
  * Validate prompt string
  */
 export function isValidPrompt(value: unknown): boolean {
-  return typeof value === "string" && value.trim().length > 0 && value.length <= MAX_PROMPT_LENGTH;
+  // Use type guard first, then check length
+  if (!isNonEmptyString(value)) return false;
+  return value.length <= MAX_PROMPT_LENGTH;
 }
 
 /**

@@ -3,6 +3,8 @@
  * Safe JSON parsing and validation operations
  */
 
+import { getErrorMessage } from '../helpers/error-helpers.util';
+
 /**
  * Safely parse JSON with fallback
  */
@@ -15,7 +17,7 @@ export function safeJsonParse<T = unknown>(
   } catch (error) {
     console.warn(
       '[json-parsers] Failed to parse JSON, using fallback:',
-      error instanceof Error ? error.message : String(error),
+      getErrorMessage(error),
       { dataPreview: data.substring(0, 100) }
     );
     return fallback;
@@ -31,7 +33,7 @@ export function safeJsonParseOrNull<T = unknown>(data: string): T | null {
   } catch (error) {
     console.warn(
       '[json-parsers] Failed to parse JSON, returning null:',
-      error instanceof Error ? error.message : String(error),
+      getErrorMessage(error),
       { dataPreview: data.substring(0, 100) }
     );
     return null;
@@ -50,7 +52,7 @@ export function safeJsonStringify(
   } catch (error) {
     console.warn(
       '[json-parsers] Failed to stringify object, using fallback:',
-      error instanceof Error ? error.message : String(error),
+      getErrorMessage(error),
       { dataType: typeof data }
     );
     return fallback;

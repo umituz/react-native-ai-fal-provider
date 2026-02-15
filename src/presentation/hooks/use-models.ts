@@ -43,37 +43,29 @@ export function useModels(props: UseModelsProps): UseModelsReturn {
     config?.defaultModelId,
   ]);
 
-  // Direct effect - no intermediate callback needed
+  // Unified load function - eliminates duplication between effect and manual reload
+  const performLoad = useCallback(() => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const selectionData = falModelsService.getModelSelectionData(type, memoizedConfig);
+      setModels(selectionData.models);
+      setSelectedModel(selectionData.selectedModel);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load models');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [type, memoizedConfig]);
+
+  // Auto-load on mount and when dependencies change
   useEffect(() => {
-    setIsLoading(true);
-    setError(null);
+    performLoad();
+  }, [performLoad]);
 
-    try {
-      const selectionData = falModelsService.getModelSelectionData(type, memoizedConfig);
-      setModels(selectionData.models);
-      setSelectedModel(selectionData.selectedModel);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load models');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [type, memoizedConfig]);
-
-  // Separate refresh callback for manual reloads
-  const loadModels = useCallback(() => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const selectionData = falModelsService.getModelSelectionData(type, memoizedConfig);
-      setModels(selectionData.models);
-      setSelectedModel(selectionData.selectedModel);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load models');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [type, memoizedConfig]);
+  // Alias for manual reloads (same function, clearer name for external API)
+  const loadModels = performLoad;
 
   const selectModel = useCallback(
     (modelId: string) => {

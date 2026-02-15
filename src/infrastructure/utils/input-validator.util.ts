@@ -4,6 +4,9 @@
  */
 
 import { isValidModelId, isValidPrompt } from "./type-guards";
+import { IMAGE_URL_FIELDS } from './constants/image-fields.constants';
+import { isImageDataUri } from './validators/data-uri-validator.util';
+import { isNonEmptyString } from './validators/string-validator.util';
 
 /**
  * Detect potentially malicious content in strings
@@ -49,7 +52,7 @@ function isValidAndSafeUrl(value: string): boolean {
   }
 
   // Allow base64 image data URIs only
-  if (value.startsWith('data:image/')) {
+  if (isImageDataUri(value)) {
     // Check for suspicious content in data URI
     const dataContent = value.substring(0, 200); // Check first 200 chars
     if (hasSuspiciousContent(dataContent)) {
@@ -134,16 +137,8 @@ export function validateInput(
     }
   }
 
-  // Validate image_url fields if present
-  const imageFields = [
-    "image_url",
-    "second_image_url",
-    "base_image_url",
-    "swap_image_url",
-    "mask_url",
-  ];
-
-  for (const field of imageFields) {
+  // Validate all image_url fields
+  for (const field of IMAGE_URL_FIELDS) {
     const value = input[field];
     if (value !== undefined) {
       if (typeof value !== "string") {
@@ -151,7 +146,7 @@ export function validateInput(
           field,
           message: `${field} must be a string`,
         });
-      } else if (!value || value.trim().length === 0) {
+      } else if (!isNonEmptyString(value)) {
         // Explicitly check for empty/whitespace-only strings
         errors.push({
           field,
