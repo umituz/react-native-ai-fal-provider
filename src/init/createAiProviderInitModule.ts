@@ -3,6 +3,7 @@
  * Creates a ready-to-use InitModule for app initialization
  */
 
+import { providerRegistry } from '@umituz/react-native-ai-generation-content';
 import { falProvider } from '../infrastructure/services';
 
 /**
@@ -36,15 +37,6 @@ export interface AiProviderInitModuleConfig {
 
   /**
    * Optional callback called after provider is initialized
-   * Use this to register the provider with wizard flow:
-   * @example
-   * ```typescript
-   * onInitialized: () => {
-   *   const { providerRegistry } = require('@umituz/react-native-ai-generation-content');
-   *   const { registerWithWizard } = require('@umituz/react-native-ai-fal-provider');
-   *   registerWithWizard(providerRegistry);
-   * }
-   * ```
    */
   onInitialized?: () => void;
 }
@@ -91,11 +83,14 @@ export function createAiProviderInitModule(
         }
 
         // Initialize FAL provider
-        falProvider.initialize({
-          apiKey,
-        });
+        falProvider.initialize({ apiKey });
 
-        // Call optional callback after initialization
+        // Register with providerRegistry automatically
+        if (!providerRegistry.hasProvider(falProvider.providerId)) {
+          providerRegistry.register(falProvider);
+        }
+        providerRegistry.setActiveProvider(falProvider.providerId);
+
         if (onInitialized) {
           onInitialized();
         }
@@ -106,4 +101,42 @@ export function createAiProviderInitModule(
       }
     },
   };
+}
+
+/**
+ * Initializes FAL provider and registers it with providerRegistry in one call.
+ * Use this for simple synchronous registration at app startup.
+ *
+ * @example
+ * ```typescript
+ * // registerProviders.ts - that's all you need!
+ * import { initializeFalProvider } from "@umituz/react-native-ai-fal-provider";
+ * import { getFalApiKey } from "@/core/utils/env";
+ *
+ * export function registerProviders(): void {
+ *   initializeFalProvider({ apiKey: getFalApiKey() });
+ * }
+ * ```
+ */
+export function initializeFalProvider(config: {
+  apiKey: string | undefined;
+}): boolean {
+  try {
+    const { apiKey } = config;
+
+    if (!apiKey) {
+      return false;
+    }
+
+    falProvider.initialize({ apiKey });
+
+    if (!providerRegistry.hasProvider(falProvider.providerId)) {
+      providerRegistry.register(falProvider);
+    }
+    providerRegistry.setActiveProvider(falProvider.providerId);
+
+    return true;
+  } catch {
+    return false;
+  }
 }

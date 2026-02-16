@@ -3,7 +3,7 @@
  * Validates input parameters before API calls
  */
 
-import { isValidModelId, isValidPrompt } from "./type-guards";
+import { isValidPrompt } from "./type-guards";
 import { IMAGE_URL_FIELDS } from './constants/image-fields.constants';
 import { isImageDataUri } from './validators/data-uri-validator.util';
 import { isNonEmptyString } from './validators/string-validator.util';
@@ -88,13 +88,6 @@ export function validateInput(
   input: Record<string, unknown>
 ): void {
   const errors: ValidationError[] = [];
-
-  // Validate model ID
-  if (!model || typeof model !== "string") {
-    errors.push({ field: "model", message: "Model ID is required and must be a string" });
-  } else if (!isValidModelId(model)) {
-    errors.push({ field: "model", message: `Invalid model ID format: ${model}` });
-  }
 
   // Validate input is not empty
   if (!input || typeof input !== "object" || Object.keys(input).length === 0) {

@@ -15,6 +15,7 @@ export * from "./exports/presentation";
 // Init Module Factory
 export {
   createAiProviderInitModule,
+  initializeFalProvider,
   type AiProviderInitModuleConfig,
 } from './init/createAiProviderInitModule';
 

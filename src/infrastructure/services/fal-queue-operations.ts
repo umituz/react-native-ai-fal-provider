@@ -5,30 +5,41 @@
 import { fal } from "@fal-ai/client";
 import type { JobSubmission, JobStatus } from "../../domain/types";
 import type { FalQueueStatus } from "../../domain/entities/fal.types";
-import { mapFalStatusToJobStatus } from "./fal-status-mapper";
+import { mapFalStatusToJobStatus, FAL_QUEUE_STATUSES } from "./fal-status-mapper";
+
+const VALID_STATUSES = Object.values(FAL_QUEUE_STATUSES) as string[];
 
 /**
- * Validate and cast FAL queue status response
+ * Normalize FAL queue status response from snake_case (SDK) to camelCase (internal)
  */
-function isValidFalQueueStatus(value: unknown): value is FalQueueStatus {
+function normalizeFalQueueStatus(value: unknown): FalQueueStatus | null {
   if (!value || typeof value !== "object") {
-    return false;
+    return null;
   }
 
-  const status = value as Partial<FalQueueStatus>;
-  const validStatuses = ["IN_QUEUE", "IN_PROGRESS", "COMPLETED", "FAILED"];
+  const raw = value as Record<string, unknown>;
 
-  return (
-    typeof status.status === "string" &&
-    validStatuses.includes(status.status) &&
-    typeof status.requestId === "string"
-  );
+  if (typeof raw.status !== "string" || !VALID_STATUSES.includes(raw.status)) {
+    return null;
+  }
+
+  // FAL SDK returns snake_case (request_id, queue_position)
+  const requestId = (raw.request_id ?? raw.requestId) as string | undefined;
+  if (typeof requestId !== "string") {
+    return null;
+  }
+
+  return {
+    status: raw.status as FalQueueStatus["status"],
+    requestId,
+    queuePosition: (raw.queue_position ?? raw.queuePosition) as number | undefined,
+    logs: Array.isArray(raw.logs) ? raw.logs : undefined,
+  };
 }
 
 export async function submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
   const result = await fal.queue.submit(model, { input });
 
-  // Validate required fields from FAL API response
   if (!result?.request_id) {
     throw new Error(`FAL API response missing request_id for model ${model}`);
   }
@@ -45,9 +56,10 @@ export async function submitJob(model: string, input: Record<string, unknown>): 
 }
 
 export async function getJobStatus(model: string, requestId: string): Promise<JobStatus> {
-  const status = await fal.queue.status(model, { requestId, logs: true });
+  const raw = await fal.queue.status(model, { requestId, logs: true });
 
-  if (!isValidFalQueueStatus(status)) {
+  const status = normalizeFalQueueStatus(raw);
+  if (!status) {
     throw new Error(
       `Invalid FAL queue status response for model ${model}, requestId ${requestId}`
     );
@@ -65,7 +77,6 @@ export async function getJobResult<T = unknown>(model: string, requestId: string
     );
   }
 
-  // Type guard: ensure result.data exists before casting
   if (!('data' in result)) {
     throw new Error(
       `Invalid FAL queue result for model ${model}, requestId ${requestId}: Missing 'data' property`

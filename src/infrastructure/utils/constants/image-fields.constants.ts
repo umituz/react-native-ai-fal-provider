@@ -33,6 +33,7 @@ export const IMAGE_URL_FIELDS = [
   "driver_image_url",
   "mask_url",
   "input_image_url",
+  "subject_reference_image_url",
 ] as const;
 
 /**

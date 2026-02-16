@@ -73,18 +73,17 @@ export class FalProvider implements IAIProvider {
   async submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
     this.validateInit();
     validateInput(model, input);
-    return queueOps.submitJob(model, input);
+    const processedInput = await preprocessInput(input);
+    return queueOps.submitJob(model, processedInput);
   }
 
   async getJobStatus(model: string, requestId: string): Promise<JobStatus> {
     this.validateInit();
-    validateInput(model, {});
     return queueOps.getJobStatus(model, requestId);
   }
 
   async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
     this.validateInit();
-    validateInput(model, {});
     return queueOps.getJobResult<T>(model, requestId);
   }
 

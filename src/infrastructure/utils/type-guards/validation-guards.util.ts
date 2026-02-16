@@ -41,10 +41,13 @@ export function isValidApiKey(value: unknown): boolean {
 
 /**
  * Validate model ID format
- * Pattern: org/model or org/model/version
+ * Pattern: org/model or org/model/sub1/sub2/... (multiple path segments)
  * Allows dots for versions (e.g., v1.5) but prevents path traversal (..)
+ * Examples:
+ *   - xai/grok-imagine-video/text-to-video
+ *   - fal-ai/minimax/hailuo-02/standard/image-to-video
  */
-const MODEL_ID_PATTERN = /^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+(\/[a-zA-Z0-9-_.]+)?$/;
+const MODEL_ID_PATTERN = /^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+(\/[a-zA-Z0-9-_.]+)*$/;
 
 export function isValidModelId(value: unknown): boolean {
   if (typeof value !== "string") {
