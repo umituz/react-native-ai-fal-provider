@@ -50,8 +50,6 @@ export {
   isString,
 } from "../infrastructure/utils/validators/string-validator.util";
 
-export { CostTracker } from "../infrastructure/utils/cost-tracker";
-
 export {
   isFalModelType,
   isModelType,

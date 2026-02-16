@@ -1,101 +1,56 @@
 /**
- * useModels Hook
- * Manages FAL AI model selection with dynamic credit costs
- *
- * @example
- * const { models, selectedModel, selectModel, creditCost, modelId } = useModels({
- *   type: "text-to-video",
- *   config: { defaultCreditCost: 20, defaultModelId: "fal-ai/minimax-video" }
- * });
+ * useModels Hook - Model selection management
  */
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { falModelsService } from "../../infrastructure/services/fal-models.service";
-import type { FalModelConfig } from "../../domain/constants/default-models.constants";
-import type {
-  ModelType,
-  ModelSelectionConfig,
-  UseModelsReturn,
-} from "../../domain/types/model-selection.types";
-
-export type { UseModelsReturn } from "../../domain/types/model-selection.types";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { falModelsService, type FalModelConfig } from "../../infrastructure/services/fal-models.service";
 
 export interface UseModelsProps {
-  /** Model type to fetch */
-  readonly type: ModelType;
-  /** Optional configuration */
-  readonly config?: ModelSelectionConfig;
+  readonly models: FalModelConfig[];
+  readonly initialModelId?: string;
+}
+
+export interface UseModelsReturn {
+  readonly models: FalModelConfig[];
+  readonly selectedModel: FalModelConfig | null;
+  readonly selectModel: (modelId: string) => void;
+  readonly modelId: string;
 }
 
 export function useModels(props: UseModelsProps): UseModelsReturn {
-  const { type, config } = props;
+  const { models, initialModelId } = props;
 
-  const [models, setModels] = useState<FalModelConfig[]>([]);
-  const [selectedModel, setSelectedModel] = useState<FalModelConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const sortedModels = useMemo(() => falModelsService.sortModels(models), [models]);
 
-  // Memoize config to prevent unnecessary re-renders when parent re-renders
-  // Only recreate when actual config values change
-  const memoizedConfig = useMemo(() => config, [
-    config?.initialModelId,
-    config?.defaultCreditCost,
-    config?.defaultModelId,
-  ]);
-
-  // Unified load function - eliminates duplication between effect and manual reload
-  const performLoad = useCallback(() => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const selectionData = falModelsService.getModelSelectionData(type, memoizedConfig);
-      setModels(selectionData.models);
-      setSelectedModel(selectionData.selectedModel);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load models');
-    } finally {
-      setIsLoading(false);
+  const [selectedModel, setSelectedModel] = useState<FalModelConfig | null>(() => {
+    if (initialModelId) {
+      const initial = falModelsService.findById(initialModelId, sortedModels);
+      if (initial) return initial;
     }
-  }, [type, memoizedConfig]);
+    return falModelsService.getDefaultModel(sortedModels) ?? null;
+  });
 
-  // Auto-load on mount and when dependencies change
   useEffect(() => {
-    performLoad();
-  }, [performLoad]);
-
-  // Alias for manual reloads (same function, clearer name for external API)
-  const loadModels = performLoad;
+    if (initialModelId) {
+      const model = falModelsService.findById(initialModelId, sortedModels);
+      if (model) setSelectedModel(model);
+    }
+  }, [initialModelId, sortedModels]);
 
   const selectModel = useCallback(
     (modelId: string) => {
-      const model = models.find((m) => m.id === modelId);
-      if (model) {
-        setSelectedModel(model);
-      }
+      const model = falModelsService.findById(modelId, sortedModels);
+      if (model) setSelectedModel(model);
     },
-    [models],
+    [sortedModels]
   );
 
-  const creditCost = useMemo(() => {
-    return falModelsService.getModelCreditCost(
-      selectedModel?.id ?? falModelsService.getDefaultModelId(type),
-      type
-    );
-  }, [selectedModel, type]);
-
-  const modelId = useMemo(() => {
-    return selectedModel?.id ?? falModelsService.getDefaultModelId(type);
-  }, [selectedModel, type]);
+  const modelId = useMemo(() => selectedModel?.id ?? "", [selectedModel]);
 
   return {
-    models,
+    models: sortedModels,
     selectedModel,
     selectModel,
-    creditCost,
     modelId,
-    isLoading,
-    error,
-    refreshModels: loadModels,
   };
 }

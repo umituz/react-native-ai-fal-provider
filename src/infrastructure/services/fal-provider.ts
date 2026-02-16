@@ -1,6 +1,5 @@
 /**
  * FAL Provider - Implements IAIProvider interface
- * Orchestrates FAL AI operations with Promise Deduplication
  */
 
 import { fal } from "@fal-ai/client";
@@ -9,10 +8,9 @@ import type {
   RunOptions, ProviderCapabilities, ImageFeatureType, VideoFeatureType,
   ImageFeatureInputData, VideoFeatureInputData,
 } from "../../domain/types";
-import type { CostTrackerConfig } from "../../domain/entities/cost-tracking.types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
-import { CostTracker, executeWithCostTracking, preprocessInput } from "../utils";
+import { preprocessInput } from "../utils";
 import {
   createRequestKey, getExistingRequest, storeRequest,
   removeRequest, cancelAllRequests, hasActiveRequests,
@@ -26,7 +24,6 @@ export class FalProvider implements IAIProvider {
 
   private apiKey: string | null = null;
   private initialized = false;
-  private costTracker: CostTracker | null = null;
 
   initialize(config: AIProviderConfig): void {
     this.apiKey = config.apiKey;
@@ -39,22 +36,6 @@ export class FalProvider implements IAIProvider {
       },
     });
     this.initialized = true;
-  }
-
-  enableCostTracking(config?: CostTrackerConfig): void {
-    this.costTracker = new CostTracker(config);
-  }
-
-  disableCostTracking(): void {
-    this.costTracker = null;
-  }
-
-  isCostTrackingEnabled(): boolean {
-    return this.costTracker !== null;
-  }
-
-  getCostTracker(): CostTracker | null {
-    return this.costTracker;
   }
 
   isInitialized(): boolean {
@@ -70,19 +51,19 @@ export class FalProvider implements IAIProvider {
   }
 
   getImageFeatureModel(_feature: ImageFeatureType): string {
-    throw new Error("Feature-specific models are not supported in this provider. Use the main app's feature implementations.");
+    throw new Error("Feature-specific models not supported. Use main app's feature implementations.");
   }
 
   buildImageFeatureInput(_feature: ImageFeatureType, _data: ImageFeatureInputData): Record<string, unknown> {
-    throw new Error("Feature-specific input building is not supported in this provider. Use the main app's feature implementations.");
+    throw new Error("Feature-specific input building not supported. Use main app's feature implementations.");
   }
 
   getVideoFeatureModel(_feature: VideoFeatureType): string {
-    throw new Error("Feature-specific models are not supported in this provider. Use the main app's feature implementations.");
+    throw new Error("Feature-specific models not supported. Use main app's feature implementations.");
   }
 
   buildVideoFeatureInput(_feature: VideoFeatureType, _data: VideoFeatureInputData): Record<string, unknown> {
-    throw new Error("Feature-specific input building is not supported in this provider. Use the main app's feature implementations.");
+    throw new Error("Feature-specific input building not supported. Use main app's feature implementations.");
   }
 
   private validateInit(): void {
@@ -97,13 +78,13 @@ export class FalProvider implements IAIProvider {
 
   async getJobStatus(model: string, requestId: string): Promise<JobStatus> {
     this.validateInit();
-    validateInput(model, {}); // Validate model ID only
+    validateInput(model, {});
     return queueOps.getJobStatus(model, requestId);
   }
 
   async getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
     this.validateInit();
-    validateInput(model, {}); // Validate model ID only
+    validateInput(model, {});
     return queueOps.getJobResult<T>(model, requestId);
   }
 
@@ -119,15 +100,10 @@ export class FalProvider implements IAIProvider {
     const key = createRequestKey(model, processedInput);
 
     const existing = getExistingRequest<T>(key);
-    if (existing) {
-      return existing.promise;
-    }
+    if (existing) return existing.promise;
 
     const abortController = new AbortController();
-    const tracker = this.costTracker;
 
-    // Create promise with resolvers using definite assignment
-    // This prevents race conditions and ensures type safety
     let resolvePromise!: (value: T) => void;
     let rejectPromise!: (error: unknown) => void;
     const promise = new Promise<T>((resolve, reject) => {
@@ -135,32 +111,17 @@ export class FalProvider implements IAIProvider {
       rejectPromise = reject;
     });
 
-    // Store promise immediately to enable request deduplication
-    // Multiple simultaneous calls with same params will get the same promise
     storeRequest(key, { promise, abortController, createdAt: Date.now() });
 
-    // Execute the actual operation and resolve/reject the stored promise
-    // Note: This promise chain is not awaited - it runs independently
-    executeWithCostTracking({
-      tracker,
-      model,
-      operation: "subscribe",
-      execute: () => handleFalSubscription<T>(model, processedInput, options, abortController.signal),
-      getRequestId: (res) => res.requestId ?? undefined,
-    })
-      .then((res) => {
-        resolvePromise(res.result);
-      })
-      .catch((error) => {
-        rejectPromise(error);
-      })
+    handleFalSubscription<T>(model, processedInput, options, abortController.signal)
+      .then((res) => resolvePromise(res.result))
+      .catch((error) => rejectPromise(error))
       .finally(() => {
         try {
           removeRequest(key);
         } catch (cleanupError) {
-          // Log but don't throw - cleanup errors shouldn't affect the operation result
           console.error(
-            `[fal-provider] Error removing request from store: ${key}`,
+            `[fal-provider] Error removing request: ${key}`,
             cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
           );
         }
@@ -179,19 +140,13 @@ export class FalProvider implements IAIProvider {
       throw new Error("Request cancelled by user");
     }
 
-    return executeWithCostTracking({
-      tracker: this.costTracker,
-      model,
-      operation: "run",
-      execute: () => handleFalRun<T>(model, processedInput, options),
-    });
+    return handleFalRun<T>(model, processedInput, options);
   }
 
   reset(): void {
     this.cancelCurrentRequest();
     this.apiKey = null;
     this.initialized = false;
-    this.costTracker = null;
   }
 
   cancelCurrentRequest(): void {

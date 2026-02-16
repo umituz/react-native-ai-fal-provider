@@ -33,6 +33,20 @@ export interface AiProviderInitModuleConfig {
    * @default ["firebase"]
    */
   dependsOn?: string[];
+
+  /**
+   * Optional callback called after provider is initialized
+   * Use this to register the provider with wizard flow:
+   * @example
+   * ```typescript
+   * onInitialized: () => {
+   *   const { providerRegistry } = require('@umituz/react-native-ai-generation-content');
+   *   const { registerWithWizard } = require('@umituz/react-native-ai-fal-provider');
+   *   registerWithWizard(providerRegistry);
+   * }
+   * ```
+   */
+  onInitialized?: () => void;
 }
 
 /**
@@ -61,6 +75,7 @@ export function createAiProviderInitModule(
     getApiKey,
     critical = false,
     dependsOn = ['firebase'],
+    onInitialized,
   } = config;
 
   return {
@@ -75,9 +90,15 @@ export function createAiProviderInitModule(
           return Promise.resolve(false);
         }
 
+        // Initialize FAL provider
         falProvider.initialize({
           apiKey,
         });
+
+        // Call optional callback after initialization
+        if (onInitialized) {
+          onInitialized();
+        }
 
         return Promise.resolve(true);
       } catch (error) {

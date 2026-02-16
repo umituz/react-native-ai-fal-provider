@@ -2,13 +2,7 @@
  * Domain Types Index
  */
 
-export type {
-  ModelType,
-  ModelSelectionConfig,
-  ModelSelectionState,
-  ModelSelectionActions,
-  UseModelsReturn,
-} from "./model-selection.types";
+export type { ModelType } from "./model-selection.types";
 
 export type {
   UpscaleOptions,

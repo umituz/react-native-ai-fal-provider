@@ -17,3 +17,6 @@ export {
   createAiProviderInitModule,
   type AiProviderInitModuleConfig,
 } from './init/createAiProviderInitModule';
+
+// Wizard Flow Registration Helper
+export { registerWithWizard } from './init/registerWithWizard';
