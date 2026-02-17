@@ -105,3 +105,10 @@ export {
 
 export { FalGenerationStateManager } from "./fal-generation-state-manager.util";
 export type { GenerationState } from "./fal-generation-state-manager.util";
+
+export {
+  calculateVideoCredits,
+  calculateImageCredits,
+  calculateCreditsFromConfig,
+} from "./pricing/fal-pricing.util";
+export type { GenerationResolution } from "./pricing/fal-pricing.util";

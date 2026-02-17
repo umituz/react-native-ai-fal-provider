@@ -19,7 +19,7 @@ import { falProvider } from '../infrastructure/services';
  * ```
  */
 export function registerWithWizard(registry?: {
-  register: (provider: any) => void;
+  register: (provider: unknown) => void;
   setActiveProvider: (id: string) => void;
 }): void {
   const reg = registry ?? providerRegistry;
