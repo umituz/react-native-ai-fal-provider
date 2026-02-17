@@ -1,6 +1,6 @@
 {
   "name": "@umituz/react-native-ai-fal-provider",
-  "version": "3.1.3",
+  "version": "3.1.6",
   "description": "FAL AI provider for React Native - implements IAIProvider interface for unified AI generation",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -27,14 +27,14 @@
     "url": "https://github.com/umituz/react-native-ai-fal-provider"
   },
   "peerDependencies": {
-    "@fal-ai/client": ">=0.6.0",
+    "@fal-ai/client": ">=1.7.0",
     "@umituz/react-native-ai-generation-content": ">=1.70.0",
     "expo": ">=54.0.0",
     "react": ">=19.0.0",
     "react-native": "0.81.4"
   },
   "dependencies": {
-    "@fal-ai/client": ">=0.6.0"
+    "@fal-ai/client": ">=1.7.0"
   },
   "devDependencies": {
     "@expo/vector-icons": "^15.0.3",

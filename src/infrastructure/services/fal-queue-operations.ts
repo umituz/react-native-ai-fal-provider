@@ -1,51 +1,29 @@
 /**
  * FAL Queue Operations - Direct FAL API queue interactions
+ * No silent fallbacks - throws descriptive errors on unexpected responses
  */
 
 import { fal } from "@fal-ai/client";
 import type { JobSubmission, JobStatus } from "../../domain/types";
-import type { FalQueueStatus } from "../../domain/entities/fal.types";
-import { mapFalStatusToJobStatus, FAL_QUEUE_STATUSES } from "./fal-status-mapper";
-
-const VALID_STATUSES = Object.values(FAL_QUEUE_STATUSES) as string[];
+import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 
 /**
- * Normalize FAL queue status response from snake_case (SDK) to camelCase (internal)
+ * Submit job to FAL queue
+ * @throws {Error} if response is missing required fields
  */
-function normalizeFalQueueStatus(value: unknown): FalQueueStatus | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const raw = value as Record<string, unknown>;
-
-  if (typeof raw.status !== "string" || !VALID_STATUSES.includes(raw.status)) {
-    return null;
-  }
-
-  // FAL SDK returns snake_case (request_id, queue_position)
-  const requestId = (raw.request_id ?? raw.requestId) as string | undefined;
-  if (typeof requestId !== "string") {
-    return null;
-  }
-
-  return {
-    status: raw.status as FalQueueStatus["status"],
-    requestId,
-    queuePosition: (raw.queue_position ?? raw.queuePosition) as number | undefined,
-    logs: Array.isArray(raw.logs) ? raw.logs : undefined,
-  };
-}
-
 export async function submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
   const result = await fal.queue.submit(model, { input });
 
   if (!result?.request_id) {
-    throw new Error(`FAL API response missing request_id for model ${model}`);
+    throw new Error(
+      `FAL queue.submit response missing request_id for model ${model}. Response keys: ${Object.keys(result ?? {}).join(", ")}`
+    );
   }
 
   if (!result?.status_url) {
-    throw new Error(`FAL API response missing status_url for model ${model}`);
+    throw new Error(
+      `FAL queue.submit response missing status_url for model ${model}. Response keys: ${Object.keys(result).join(", ")}`
+    );
   }
 
   return {
@@ -55,31 +33,60 @@ export async function submitJob(model: string, input: Record<string, unknown>): 
   };
 }
 
+/**
+ * Get job status from FAL queue
+ * @throws {Error} if response format is invalid or status is unrecognized
+ */
 export async function getJobStatus(model: string, requestId: string): Promise<JobStatus> {
   const raw = await fal.queue.status(model, { requestId, logs: true });
 
-  const status = normalizeFalQueueStatus(raw);
-  if (!status) {
+  if (!raw || typeof raw !== "object") {
     throw new Error(
-      `Invalid FAL queue status response for model ${model}, requestId ${requestId}`
+      `FAL queue.status returned non-object for model ${model}, requestId ${requestId}: ${typeof raw}`
     );
   }
 
-  return mapFalStatusToJobStatus(status);
+  const response = raw as Record<string, unknown>;
+
+  if (typeof response.status !== "string") {
+    throw new Error(
+      `FAL queue.status response missing 'status' field for model ${model}, requestId ${requestId}. Keys: ${Object.keys(response).join(", ")}`
+    );
+  }
+
+  // FAL SDK returns snake_case (request_id, queue_position)
+  const resolvedRequestId = (response.request_id ?? response.requestId) as string | undefined;
+  if (typeof resolvedRequestId !== "string") {
+    throw new Error(
+      `FAL queue.status response missing request_id for model ${model}, requestId ${requestId}. Keys: ${Object.keys(response).join(", ")}`
+    );
+  }
+
+  return mapFalStatusToJobStatus(
+    response.status,
+    resolvedRequestId,
+    (response.queue_position ?? response.queuePosition) as number | undefined,
+    Array.isArray(response.logs) ? response.logs : undefined,
+  );
 }
 
+/**
+ * Get job result from FAL queue
+ * fal.queue.result returns Result<T> = { data: T, requestId: string }
+ * @throws {Error} if response format is unexpected
+ */
 export async function getJobResult<T = unknown>(model: string, requestId: string): Promise<T> {
   const result = await fal.queue.result(model, { requestId });
 
   if (!result || typeof result !== 'object') {
     throw new Error(
-      `Invalid FAL queue result for model ${model}, requestId ${requestId}: Result is not an object`
+      `FAL queue.result returned non-object for model ${model}, requestId ${requestId}: ${typeof result}`
     );
   }
 
   if (!('data' in result)) {
     throw new Error(
-      `Invalid FAL queue result for model ${model}, requestId ${requestId}: Missing 'data' property`
+      `FAL queue.result response missing 'data' property for model ${model}, requestId ${requestId}. Keys: ${Object.keys(result).join(", ")}`
     );
   }
 

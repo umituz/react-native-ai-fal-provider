@@ -3,30 +3,14 @@
  * Clone, merge, pick, and omit operations
  */
 
-import { getErrorMessage } from '../helpers/error-helpers.util';
-
 /**
  * Deep clone object using JSON serialization
- * NOTE: This has limitations:
- * - Functions are not cloned
- * - Dates become strings
- * - Circular references will cause errors
- * For complex objects, consider a dedicated cloning library
+ * Throws on failure (circular references, non-serializable values)
+ * No silent fallback - caller must handle errors explicitly
  */
 export function deepClone<T>(data: T): T {
-  try {
-    // Try JSON clone first (fast path)
-    const serialized = JSON.stringify(data);
-    return JSON.parse(serialized) as T;
-  } catch (error) {
-    // Fallback for circular references or other JSON errors
-    console.warn(
-      '[object-transformers] deepClone failed, returning original:',
-      getErrorMessage(error)
-    );
-    // Return original data if cloning fails
-    return data;
-  }
+  const serialized = JSON.stringify(data);
+  return JSON.parse(serialized) as T;
 }
 
 /**

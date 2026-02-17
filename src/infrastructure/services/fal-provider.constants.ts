@@ -10,7 +10,7 @@ export const DEFAULT_FAL_CONFIG = {
   baseDelay: 1000,
   maxDelay: 10000,
   defaultTimeoutMs: 300000,
-  pollInterval: 1000,
+  pollInterval: 2500,
 } as const;
 
 export const FAL_CAPABILITIES: ProviderCapabilities = {

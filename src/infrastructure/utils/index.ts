@@ -26,7 +26,6 @@ export {
   mapFalError,
   parseFalError,
   isFalErrorRetryable,
-  extractStatusCode,
 } from "./fal-error-handler.util";
 
 export { formatDate } from "./date-format.util";

@@ -3,14 +3,74 @@
  * Handles subscribe, run methods and cancellation logic
  */
 
-import { fal } from "@fal-ai/client";
+import { fal, ApiError, ValidationError } from "@fal-ai/client";
 import type { SubscribeOptions, RunOptions } from "../../domain/types";
-import type { FalQueueStatus } from "../../domain/entities/fal.types";
 import { DEFAULT_FAL_CONFIG } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { validateNSFWContent } from "../validators/nsfw-validator";
 import { NSFWContentError } from "./nsfw-content-error";
-import { parseFalError } from "../utils/fal-error-handler.util";
+
+/**
+ * Unwrap fal.subscribe / fal.run Result<T> = { data: T, requestId: string }
+ * Throws if response format is unexpected - no silent fallbacks
+ */
+function unwrapFalResult<T>(rawResult: unknown): { data: T; requestId: string } {
+  if (!rawResult || typeof rawResult !== "object") {
+    throw new Error(
+      `Unexpected fal response: expected object, got ${typeof rawResult}`
+    );
+  }
+
+  const result = rawResult as Record<string, unknown>;
+
+  if (!("data" in result)) {
+    throw new Error(
+      `Unexpected fal response format: missing 'data' property. Keys: ${Object.keys(result).join(", ")}`
+    );
+  }
+
+  if (!("requestId" in result) || typeof result.requestId !== "string") {
+    throw new Error(
+      `Unexpected fal response format: missing or invalid 'requestId'. Keys: ${Object.keys(result).join(", ")}`
+    );
+  }
+
+  return { data: result.data as T, requestId: result.requestId };
+}
+
+/**
+ * Format fal-ai SDK errors into user-readable messages
+ * Uses proper @fal-ai/client error types (ApiError, ValidationError)
+ */
+function formatFalError(error: unknown): string {
+  if (error instanceof ValidationError) {
+    const details = error.fieldErrors;
+    if (details.length > 0) {
+      return details.map((d) => d.msg).filter(Boolean).join("; ") || error.message;
+    }
+    return error.message;
+  }
+
+  if (error instanceof ApiError) {
+    // ApiError has .status, .body, .message
+    if (error.status === 401 || error.status === 403) {
+      return "Authentication failed. Please check your API key.";
+    }
+    if (error.status === 429) {
+      return "Rate limit exceeded. Please wait and try again.";
+    }
+    if (error.status === 402) {
+      return "Insufficient credits. Please check your billing.";
+    }
+    return error.message || `API error (${error.status})`;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
 
 /**
  * Handle FAL subscription with timeout and cancellation
@@ -20,10 +80,9 @@ export async function handleFalSubscription<T = unknown>(
   input: Record<string, unknown>,
   options?: SubscribeOptions<T>,
   signal?: AbortSignal
-): Promise<{ result: T; requestId: string | null }> {
+): Promise<{ result: T; requestId: string }> {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
 
-  // Validate timeout is a positive integer within reasonable bounds
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 3600000) {
     throw new Error(
       `Invalid timeout: ${timeoutMs}ms. Must be a positive integer between 1 and 3600000ms (1 hour)`
@@ -31,14 +90,11 @@ export async function handleFalSubscription<T = unknown>(
   }
 
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  let currentRequestId: string | null = null;
   let abortHandler: (() => void) | null = null;
   let listenerAdded = false;
-
   let lastStatus = "";
 
   try {
-    // Check if signal is already aborted BEFORE starting any async work
     if (signal?.aborted) {
       throw new Error("Request cancelled by user");
     }
@@ -48,21 +104,18 @@ export async function handleFalSubscription<T = unknown>(
         input,
         logs: false,
         pollInterval: DEFAULT_FAL_CONFIG.pollInterval,
-        onQueueUpdate: (update: { status: string; logs?: unknown[]; request_id?: string }) => {
-          currentRequestId = update.request_id ?? currentRequestId;
-          const jobStatus = mapFalStatusToJobStatus({
-            status: update.status as FalQueueStatus["status"],
-            requestId: currentRequestId ?? "",
-            logs: update.logs as FalQueueStatus["logs"],
-            queuePosition: undefined,
-          });
+        onQueueUpdate: (update: { status: string; logs?: unknown[]; request_id?: string; queue_position?: number }) => {
+          const jobStatus = mapFalStatusToJobStatus(
+            update.status,
+            update.request_id,
+            update.queue_position,
+            Array.isArray(update.logs) ? update.logs : undefined,
+          );
+
           if (jobStatus.status !== lastStatus) {
             lastStatus = jobStatus.status;
-
-            // Emit status changes without fake progress percentages
             if (options?.onProgress) {
               if (jobStatus.status === "IN_QUEUE" || jobStatus.status === "IN_PROGRESS") {
-                // Indeterminate progress - let UI show spinner/loading
                 options.onProgress({ progress: -1, status: jobStatus.status });
               } else if (jobStatus.status === "COMPLETED") {
                 options.onProgress({ progress: 100, status: "COMPLETED" });
@@ -76,21 +129,17 @@ export async function handleFalSubscription<T = unknown>(
       }),
       new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
-          reject(new Error("FAL subscription timeout"));
+          reject(new Error(`FAL subscription timeout after ${timeoutMs}ms for model ${model}`));
         }, timeoutMs);
       }),
     ];
 
-    // Set up abort listener BEFORE checking aborted state again to avoid race
     if (signal) {
       const abortPromise = new Promise<never>((_, reject) => {
-        abortHandler = () => {
-          reject(new Error("Request cancelled by user"));
-        };
+        abortHandler = () => reject(new Error("Request cancelled by user"));
         signal.addEventListener("abort", abortHandler);
         listenerAdded = true;
-
-        // Check again after adding listener to catch signals that arrived during setup
+        // Re-check after listener to handle race
         if (signal.aborted) {
           abortHandler();
         }
@@ -98,22 +147,20 @@ export async function handleFalSubscription<T = unknown>(
       promises.push(abortPromise);
     }
 
-    const result = await Promise.race(promises);
+    const rawResult = await Promise.race(promises);
+    const { data, requestId } = unwrapFalResult<T>(rawResult);
 
-    validateNSFWContent(result as Record<string, unknown>);
+    validateNSFWContent(data as Record<string, unknown>);
 
-    options?.onResult?.(result as T);
-    return { result: result as T, requestId: currentRequestId };
+    options?.onResult?.(data);
+    return { result: data, requestId };
   } catch (error) {
     if (error instanceof NSFWContentError) {
       throw error;
     }
 
-    const userMessage = parseFalError(error);
-    if (!userMessage || userMessage.trim().length === 0) {
-      throw new Error("An unknown error occurred. Please try again.");
-    }
-    throw new Error(userMessage);
+    const message = formatFalError(error);
+    throw new Error(message);
   } finally {
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -132,22 +179,22 @@ export async function handleFalRun<T = unknown>(
   input: Record<string, unknown>,
   options?: RunOptions
 ): Promise<T> {
-  // Indeterminate progress - no fake percentages
   options?.onProgress?.({ progress: -1, status: "IN_PROGRESS" as const });
 
   try {
-    const result = await fal.run(model, { input });
+    const rawResult = await fal.run(model, { input });
+    const { data } = unwrapFalResult<T>(rawResult);
 
-    validateNSFWContent(result as Record<string, unknown>);
+    validateNSFWContent(data as Record<string, unknown>);
 
     options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
-    return result as T;
+    return data;
   } catch (error) {
     if (error instanceof NSFWContentError) {
       throw error;
     }
 
-    const userMessage = parseFalError(error);
-    throw new Error(userMessage);
+    const message = formatFalError(error);
+    throw new Error(message);
   }
 }
