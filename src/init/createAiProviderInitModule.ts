@@ -43,22 +43,6 @@ export interface AiProviderInitModuleConfig {
 
 /**
  * Creates an AI Provider initialization module for use with createAppInitializer
- *
- * @example
- * ```typescript
- * import { createAppInitializer } from "@umituz/react-native-design-system";
- * import { createFirebaseInitModule } from "@umituz/react-native-firebase";
- * import { createAiProviderInitModule } from "@umituz/react-native-ai-fal-provider";
- *
- * export const initializeApp = createAppInitializer({
- *   modules: [
- *     createFirebaseInitModule(),
- *     createAiProviderInitModule({
- *       getApiKey: () => getFalApiKey(),
- *     }),
- *   ],
- * });
- * ```
  */
 export function createAiProviderInitModule(
   config: AiProviderInitModuleConfig
@@ -82,10 +66,8 @@ export function createAiProviderInitModule(
           return Promise.resolve(false);
         }
 
-        // Initialize FAL provider
         falProvider.initialize({ apiKey });
 
-        // Register with providerRegistry automatically
         if (!providerRegistry.hasProvider(falProvider.providerId)) {
           providerRegistry.register(falProvider);
         }
@@ -101,42 +83,4 @@ export function createAiProviderInitModule(
       }
     },
   };
-}
-
-/**
- * Initializes FAL provider and registers it with providerRegistry in one call.
- * Use this for simple synchronous registration at app startup.
- *
- * @example
- * ```typescript
- * // registerProviders.ts - that's all you need!
- * import { initializeFalProvider } from "@umituz/react-native-ai-fal-provider";
- * import { getFalApiKey } from "@/core/utils/env";
- *
- * export function registerProviders(): void {
- *   initializeFalProvider({ apiKey: getFalApiKey() });
- * }
- * ```
- */
-export function initializeFalProvider(config: {
-  apiKey: string | undefined;
-}): boolean {
-  try {
-    const { apiKey } = config;
-
-    if (!apiKey) {
-      return false;
-    }
-
-    falProvider.initialize({ apiKey });
-
-    if (!providerRegistry.hasProvider(falProvider.providerId)) {
-      providerRegistry.register(falProvider);
-    }
-    providerRegistry.setActiveProvider(falProvider.providerId);
-
-    return true;
-  } catch {
-    return false;
-  }
 }

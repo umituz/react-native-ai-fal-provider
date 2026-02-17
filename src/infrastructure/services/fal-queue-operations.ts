@@ -46,7 +46,7 @@ export async function getJobStatus(model: string, requestId: string): Promise<Jo
     );
   }
 
-  const response = raw as Record<string, unknown>;
+  const response = raw as unknown as Record<string, unknown>;
 
   if (typeof response.status !== "string") {
     throw new Error(

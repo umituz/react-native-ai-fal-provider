@@ -5,7 +5,6 @@
 export {
   FalProvider,
   falProvider,
-  falModelsService,
   NSFWContentError,
   cleanupRequestStore,
   stopAutomaticCleanup,
@@ -13,22 +12,17 @@ export {
 export type { FalProviderType, ActiveRequest } from "../infrastructure/services";
 
 export {
-  categorizeFalError,
   mapFalError,
   parseFalError,
   isFalErrorRetryable,
-  buildSingleImageInput,
-  buildDualImageInput,
 } from "../infrastructure/utils";
 
-// Error handling utilities
 export {
   getErrorMessage,
   getErrorMessageOr,
   formatErrorMessage,
 } from "../infrastructure/utils/helpers/error-helpers.util";
 
-// Image field constants
 export {
   IMAGE_URL_FIELDS,
   isImageField,
@@ -37,7 +31,6 @@ export type {
   ImageUrlField,
 } from "../infrastructure/utils/constants/image-fields.constants";
 
-// Validators
 export {
   isDataUri,
   isBase64DataUri,
@@ -68,12 +61,6 @@ export {
   getDataUriExtension,
   uploadToFalStorage,
   uploadMultipleToFalStorage,
-  formatNumber,
-  formatBytes,
-  formatDuration,
-  truncateText,
-  truncatePrompt,
-  sanitizePrompt,
   buildErrorMessage,
   isDefined,
   removeNullish,
@@ -81,38 +68,6 @@ export {
   sleep,
 } from "../infrastructure/utils";
 
-export {
-  createJobMetadata,
-  updateJobMetadata,
-  isJobCompleted,
-  isJobRunning,
-  isJobStale,
-  getJobDuration,
-  formatJobDuration,
-  calculateJobProgress,
-  serializeJobMetadata,
-  deserializeJobMetadata,
-  filterValidJobs,
-  sortJobsByCreation,
-  getActiveJobs,
-  getCompletedJobs,
-} from "../infrastructure/utils";
-
-export {
-  saveJobMetadata,
-  loadJobMetadata,
-  deleteJobMetadata,
-  loadAllJobs,
-  cleanupOldJobs,
-  getJobsByModel,
-  getJobsByStatus,
-  updateJobStatus,
-} from "../infrastructure/utils";
-
-export type { FalJobMetadata, IJobStorage } from "../infrastructure/utils";
-export { InMemoryJobStorage } from "../infrastructure/utils";
-
-// Pricing Utilities
 export {
   calculateVideoCredits,
   calculateImageCredits,

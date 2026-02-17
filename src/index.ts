@@ -15,9 +15,8 @@ export * from "./exports/presentation";
 // Init Module Factory
 export {
   createAiProviderInitModule,
-  initializeFalProvider,
   type AiProviderInitModuleConfig,
 } from './init/createAiProviderInitModule';
 
-// Wizard Flow Registration Helper
-export { registerWithWizard } from './init/registerWithWizard';
+// Direct Initialization
+export { initializeFalProvider } from './init/initializeFalProvider';

@@ -84,7 +84,7 @@ export class InputValidationError extends Error {
  * Validate model and input parameters
  */
 export function validateInput(
-  model: string,
+  _model: string,
   input: Record<string, unknown>
 ): void {
   const errors: ValidationError[] = [];
