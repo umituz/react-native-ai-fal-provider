@@ -38,11 +38,12 @@ function isValidAndSafeUrl(value: string): boolean {
     try {
       const url = new URL(value);
       // Reject URLs with @ (potential auth bypass: http://attacker.com@internal.server/)
-      if (url.href.includes('@') && url.username) {
+      const urlAny = url as unknown as { hostname: string; username: string };
+      if (url.href.includes('@') && urlAny.username) {
         return false;
       }
       // Ensure domain exists
-      if (!url.hostname || url.hostname.length === 0) {
+      if (!urlAny.hostname || urlAny.hostname.length === 0) {
         return false;
       }
       return true;

@@ -9,7 +9,7 @@ import { falProvider } from '../infrastructure/services';
 /**
  * InitModule interface (from @umituz/react-native-design-system)
  */
-export interface InitModule {
+interface InitModule {
   name: string;
   init: () => Promise<boolean>;
   critical?: boolean;

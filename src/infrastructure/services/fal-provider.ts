@@ -13,7 +13,7 @@ import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription
 import { preprocessInput } from "../utils";
 import {
   createRequestKey, getExistingRequest, storeRequest,
-  removeRequest, cancelAllRequests, hasActiveRequests,
+  removeRequest, cancelRequest, cancelAllRequests, hasActiveRequests,
 } from "./request-store";
 import * as queueOps from "./fal-queue-operations";
 import { validateInput } from "../utils/input-validator.util";
@@ -24,6 +24,7 @@ export class FalProvider implements IAIProvider {
 
   private apiKey: string | null = null;
   private initialized = false;
+  private lastRequestKey: string | null = null;
 
   initialize(config: AIProviderConfig): void {
     this.apiKey = config.apiKey;
@@ -110,6 +111,7 @@ export class FalProvider implements IAIProvider {
       rejectPromise = reject;
     });
 
+    this.lastRequestKey = key;
     storeRequest(key, { promise, abortController, createdAt: Date.now() });
 
     handleFalSubscription<T>(model, processedInput, options, abortController.signal)
@@ -143,13 +145,18 @@ export class FalProvider implements IAIProvider {
   }
 
   reset(): void {
-    this.cancelCurrentRequest();
+    cancelAllRequests();
+    this.lastRequestKey = null;
     this.apiKey = null;
     this.initialized = false;
   }
 
   cancelCurrentRequest(): void {
-    cancelAllRequests();
+    // Cancel only this provider instance's last request, not all global requests
+    if (this.lastRequestKey) {
+      cancelRequest(this.lastRequestKey);
+      this.lastRequestKey = null;
+    }
   }
 
   hasRunningRequest(): boolean {

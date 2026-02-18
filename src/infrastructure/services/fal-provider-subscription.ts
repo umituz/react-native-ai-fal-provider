@@ -112,8 +112,9 @@ export async function handleFalSubscription<T = unknown>(
             Array.isArray(update.logs) ? update.logs : undefined,
           );
 
-          if (jobStatus.status !== lastStatus) {
-            lastStatus = jobStatus.status;
+          const statusWithPosition = `${jobStatus.status}:${jobStatus.queuePosition ?? ""}`;
+          if (statusWithPosition !== lastStatus) {
+            lastStatus = statusWithPosition;
             if (options?.onProgress) {
               if (jobStatus.status === "IN_QUEUE" || jobStatus.status === "IN_PROGRESS") {
                 options.onProgress({ progress: -1, status: jobStatus.status });
@@ -137,7 +138,7 @@ export async function handleFalSubscription<T = unknown>(
     if (signal) {
       const abortPromise = new Promise<never>((_, reject) => {
         abortHandler = () => reject(new Error("Request cancelled by user"));
-        signal.addEventListener("abort", abortHandler);
+        signal.addEventListener("abort", abortHandler, { once: true });
         listenerAdded = true;
         // Re-check after listener to handle race
         if (signal.aborted) {

@@ -31,11 +31,5 @@ export type {
   ProviderCapabilities,
   ImageFeatureInputData,
   VideoFeatureInputData,
-  IAIProviderLifecycle,
-  IAIProviderCapabilities,
-  IAIProviderJobManager,
-  IAIProviderExecutor,
-  IAIProviderImageFeatures,
-  IAIProviderVideoFeatures,
   IAIProvider,
 } from "@umituz/react-native-ai-generation-content/core";

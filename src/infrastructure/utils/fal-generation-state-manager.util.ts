@@ -79,8 +79,8 @@ export class FalGenerationStateManager<T> {
       queuePosition: status.queuePosition,
     };
 
-    // Only notify if status actually changed (idempotent callbacks)
-    const statusKey = `${normalizedStatus.status}-${normalizedStatus.requestId}`;
+    // Only notify if status or queue position changed (idempotent callbacks)
+    const statusKey = `${normalizedStatus.status}-${normalizedStatus.requestId}-${normalizedStatus.queuePosition ?? ""}`;
     if (this.lastNotifiedStatus !== statusKey) {
       this.lastNotifiedStatus = statusKey;
       this.options?.onQueueUpdate?.(normalizedStatus);

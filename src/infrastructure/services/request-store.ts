@@ -38,10 +38,23 @@ export function getRequestStore(): RequestStore {
 }
 
 /**
+ * Recursively sort object keys for deterministic JSON output
+ */
+function sortKeys(obj: unknown): unknown {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(sortKeys);
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(obj as Record<string, unknown>).sort()) {
+    sorted[key] = sortKeys((obj as Record<string, unknown>)[key]);
+  }
+  return sorted;
+}
+
+/**
  * Create a deterministic request key using model and input hash
  */
 export function createRequestKey(model: string, input: Record<string, unknown>): string {
-  const inputStr = JSON.stringify(input, Object.keys(input).sort());
+  const inputStr = JSON.stringify(sortKeys(input));
   let hash = 0;
   for (let i = 0; i < inputStr.length; i++) {
     const char = inputStr.charCodeAt(i);
@@ -71,6 +84,19 @@ export function removeRequest(key: string): void {
   store.delete(key);
   // Don't stop timer here - let the cleanup interval handle it
   // This prevents the race where a new request arrives right after we stop
+}
+
+/**
+ * Cancel a single request by key
+ */
+export function cancelRequest(key: string): void {
+  const store = getRequestStore();
+  const req = store.get(key);
+  if (req) {
+    req.abortController.abort();
+    store.delete(key);
+    if (store.size === 0) stopCleanupTimer();
+  }
 }
 
 export function cancelAllRequests(): void {
