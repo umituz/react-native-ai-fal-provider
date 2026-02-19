@@ -1,16 +1,26 @@
 /**
  * Input Preprocessor Utility
- * Detects and uploads base64 images to FAL storage before API calls
+ * Detects and uploads base64/local file images to FAL storage before API calls
  */
 
-import { uploadToFalStorage } from "./fal-storage.util";
+import { uploadToFalStorage, uploadLocalFileToFalStorage } from "./fal-storage.util";
 import { getErrorMessage } from './helpers/error-helpers.util';
 import { IMAGE_URL_FIELDS } from './constants/image-fields.constants';
 import { isImageDataUri as isBase64DataUri } from './validators/data-uri-validator.util';
 
 /**
- * Preprocess input by uploading base64 images to FAL storage
- * Returns input with URLs instead of base64 data URIs
+ * Check if a value is a local file URI (file:// or content://)
+ */
+function isLocalFileUri(value: unknown): value is string {
+  return typeof value === "string" && (
+    value.startsWith("file://") || value.startsWith("content://")
+  );
+}
+
+/**
+ * Preprocess input by uploading base64/local file images to FAL storage.
+ * Also strips sync_mode to prevent base64 data URI responses.
+ * Returns input with HTTPS URLs instead of base64/local URIs.
  */
 export async function preprocessInput(
   input: Record<string, unknown>,
@@ -18,9 +28,24 @@ export async function preprocessInput(
   const result = { ...input };
   const uploadPromises: Promise<unknown>[] = [];
 
+  // SAFETY: Strip sync_mode to prevent base64 data URI responses
+  // FAL returns base64 when sync_mode:true — we always want CDN URLs
+  if ("sync_mode" in result) {
+    delete result.sync_mode;
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.warn(
+        "[preprocessInput] Stripped sync_mode from input. " +
+        "sync_mode:true returns base64 data URIs which break Firestore persistence. " +
+        "Use falProvider.subscribe() for CDN URLs."
+      );
+    }
+  }
+
   // Handle individual image URL keys
   for (const key of IMAGE_URL_FIELDS) {
     const value = result[key];
+
+    // Upload base64 data URIs to FAL storage
     if (isBase64DataUri(value)) {
       const uploadPromise = uploadToFalStorage(value)
         .then((url) => {
@@ -35,7 +60,23 @@ export async function preprocessInput(
 
       uploadPromises.push(uploadPromise);
     }
+    // Upload local file URIs to FAL storage (file://, content://)
+    else if (isLocalFileUri(value)) {
+      const uploadPromise = uploadLocalFileToFalStorage(value)
+        .then((url) => {
+          result[key] = url;
+          return url;
+        })
+        .catch((error) => {
+          const errorMessage = `Failed to upload local file ${key}: ${getErrorMessage(error)}`;
+          console.error(`[preprocessInput] ${errorMessage}`);
+          throw new Error(errorMessage);
+        });
+
+      uploadPromises.push(uploadPromise);
+    }
   }
+
 
   // Handle image_urls array (for multi-person generation)
   if (Array.isArray(result.image_urls) && result.image_urls.length > 0) {

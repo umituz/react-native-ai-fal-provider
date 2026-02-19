@@ -43,6 +43,23 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
 }
 
 /**
+ * Upload a local file (file:// or content:// URI) to FAL storage
+ * Directly fetches the file as a blob — no base64 intermediate step
+ */
+export async function uploadLocalFileToFalStorage(fileUri: string): Promise<string> {
+  try {
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+    const url = await fal.storage.upload(blob);
+    return url;
+  } catch (error) {
+    throw new Error(
+      `Failed to upload local file to FAL storage: ${getErrorMessage(error)}`
+    );
+  }
+}
+
+/**
  * Upload multiple images to FAL storage in parallel
  * Uses Promise.allSettled to handle partial failures gracefully
  * @throws {Error} if any upload fails, with details about all failures

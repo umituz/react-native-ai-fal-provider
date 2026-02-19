@@ -22,7 +22,6 @@ function hasSuspiciousContent(value: string): boolean {
     /<object/i,                    // object tags
     /data:(?!image\/)/i,          // data URLs that aren't images
     /vbscript:/i,                  // vbscript protocol
-    /file:/i,                      // file protocol
   ];
 
   return suspiciousPatterns.some(pattern => pattern.test(value));
@@ -50,6 +49,11 @@ function isValidAndSafeUrl(value: string): boolean {
     } catch {
       return false;
     }
+  }
+
+  // Allow local file URIs (file://, content://) — preprocessInput uploads them to FAL storage
+  if (value.startsWith('file://') || value.startsWith('content://')) {
+    return true;
   }
 
   // Allow base64 image data URIs only
@@ -93,6 +97,14 @@ export function validateInput(
   // Validate input is not empty
   if (!input || typeof input !== "object" || Object.keys(input).length === 0) {
     errors.push({ field: "input", message: "Input must be a non-empty object" });
+  }
+
+  // BLOCK sync_mode:true — it causes FAL to return base64 data URIs instead of CDN URLs
+  if (input.sync_mode === true) {
+    errors.push({
+      field: "sync_mode",
+      message: "sync_mode:true is forbidden. It returns base64 data URIs instead of HTTPS CDN URLs, which breaks Firestore persistence (2048 char limit). Use falProvider.subscribe() for CDN URLs.",
+    });
   }
 
   // Validate and check prompt for malicious content
