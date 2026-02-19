@@ -25,6 +25,12 @@ function isLocalFileUri(value: unknown): value is string {
 export async function preprocessInput(
   input: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[preprocessInput] Starting input preprocessing...", {
+      keys: Object.keys(input)
+    });
+  }
+
   const result = { ...input };
   const uploadPromises: Promise<unknown>[] = [];
 

@@ -146,6 +146,9 @@ export async function handleFalSubscription<T = unknown>(
           const statusWithPosition = `${jobStatus.status}:${jobStatus.queuePosition ?? ""}`;
           if (statusWithPosition !== lastStatus) {
             lastStatus = statusWithPosition;
+            if (typeof __DEV__ !== "undefined" && __DEV__) {
+              console.log(`[fal-provider] Job Status Update: ${jobStatus.status}${jobStatus.queuePosition ? ` (Position: ${jobStatus.queuePosition})` : ""}`);
+            }
             if (options?.onProgress) {
               if (jobStatus.status === "IN_QUEUE" || jobStatus.status === "IN_PROGRESS") {
                 options.onProgress({ progress: -1, status: jobStatus.status });
@@ -182,8 +185,14 @@ export async function handleFalSubscription<T = unknown>(
     const rawResult = await Promise.race(promises);
     const { data, requestId } = unwrapFalResult<T>(rawResult);
 
+    // Validate response for base64 data URIs
+    // Since we use subscribe, we should always get CDN URLs, not base64 data URIs
     validateNoBase64InResponse(data);
     validateNSFWContent(data as Record<string, unknown>);
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log(`[fal-provider] Subscription completed successfully. Request ID: ${requestId}`);
+    }
 
     options?.onResult?.(data);
     return { result: data, requestId };
