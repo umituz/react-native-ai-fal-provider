@@ -121,10 +121,12 @@ export class FalProvider implements IAIProvider {
         try {
           removeRequest(key);
         } catch (cleanupError) {
-          console.error(
-            `[fal-provider] Error removing request: ${key}`,
-            cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
-          );
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.error(
+              `[fal-provider] Error removing request: ${key}`,
+              cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
+            );
+          }
         }
       });
 
