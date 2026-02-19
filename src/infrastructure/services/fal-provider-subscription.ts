@@ -9,6 +9,37 @@ import { DEFAULT_FAL_CONFIG } from "./fal-provider.constants";
 import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { validateNSFWContent } from "../validators/nsfw-validator";
 import { NSFWContentError } from "./nsfw-content-error";
+import { isBase64DataUri } from "../utils/validators/data-uri-validator.util";
+
+/**
+ * Validate that FAL response images contain HTTPS URLs, never base64 data URIs.
+ * FAL models should always return CDN URLs. If base64 is returned, it means the model
+ * was called with sync_mode:true or wrong parameters. Throw an explicit error to catch early.
+ */
+function validateNoBase64InResponse(data: unknown): void {
+  if (!data || typeof data !== "object") return;
+  const record = data as Record<string, unknown>;
+
+  const checkUrl = (url: unknown, field: string) => {
+    if (typeof url === "string" && isBase64DataUri(url)) {
+      throw new Error(
+        `[fal-provider] Model returned base64 data URI in '${field}' instead of an HTTPS URL. ` +
+        `Do not use sync_mode:true. Use falProvider.subscribe() to get CDN URLs.`
+      );
+    }
+  };
+
+  if (Array.isArray(record.images)) {
+    for (const img of record.images) {
+      if (img && typeof img === "object") {
+        checkUrl((img as Record<string, unknown>).url, "images[].url");
+      }
+    }
+  }
+  if (record.image && typeof record.image === "object") {
+    checkUrl((record.image as Record<string, unknown>).url, "image.url");
+  }
+}
 
 /**
  * Unwrap fal.subscribe / fal.run Result<T> = { data: T, requestId: string }
@@ -151,6 +182,7 @@ export async function handleFalSubscription<T = unknown>(
     const rawResult = await Promise.race(promises);
     const { data, requestId } = unwrapFalResult<T>(rawResult);
 
+    validateNoBase64InResponse(data);
     validateNSFWContent(data as Record<string, unknown>);
 
     options?.onResult?.(data);
@@ -186,6 +218,7 @@ export async function handleFalRun<T = unknown>(
     const rawResult = await fal.run(model, { input });
     const { data } = unwrapFalResult<T>(rawResult);
 
+    validateNoBase64InResponse(data);
     validateNSFWContent(data as Record<string, unknown>);
 
     options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
