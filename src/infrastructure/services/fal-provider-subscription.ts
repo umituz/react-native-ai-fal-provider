@@ -174,12 +174,12 @@ export async function handleFalSubscription<T = unknown>(
         abortHandler = () => reject(new Error("Request cancelled by user"));
         signal.addEventListener("abort", abortHandler, { once: true });
         listenerAdded = true;
-        // Re-check after listener to handle race
-        if (signal.aborted) {
-          abortHandler();
-        }
       });
       promises.push(abortPromise);
+      // Check after listener is attached to close the race window
+      if (signal.aborted) {
+        throw new Error("Request cancelled by user");
+      }
     }
 
     const rawResult = await Promise.race(promises);
