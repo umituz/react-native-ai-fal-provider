@@ -5,6 +5,8 @@
 
 import { NSFWContentError } from "../services/nsfw-content-error";
 
+const NSFW_SCORE_THRESHOLD = 0.5;
+
 /**
  * Check if value indicates NSFW content
  */
@@ -49,7 +51,7 @@ export function validateNSFWContent(result: Record<string, unknown>): void {
 
   // Format 4: nsfw_score number (> 0.5 threshold)
   const nsfwScore = result?.nsfw_score as number | undefined;
-  if (typeof nsfwScore === "number" && nsfwScore > 0.5) {
+  if (typeof nsfwScore === "number" && nsfwScore > NSFW_SCORE_THRESHOLD) {
     throw new NSFWContentError();
   }
 

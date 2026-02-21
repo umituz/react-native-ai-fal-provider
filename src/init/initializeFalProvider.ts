@@ -28,7 +28,8 @@ export function initializeFalProvider(config: {
     providerRegistry.setActiveProvider(falProvider.providerId);
 
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    console.error('[initializeFalProvider] Initialization failed:', error);
+    throw error;
   }
 }

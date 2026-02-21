@@ -19,8 +19,7 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
     console.log(`[fal-storage] Uploading base64 image to FAL (first 50 chars): ${base64.substring(0, 50)}...`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment
-  const tempUri = (await base64ToTempFile(base64));
+  const tempUri = await base64ToTempFile(base64);
 
   if (!tempUri) {
     throw new Error("Failed to create temporary file from base64 data");
@@ -38,7 +37,6 @@ export async function uploadToFalStorage(base64: string): Promise<string> {
     return url;
   } finally {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       await deleteTempFile(tempUri);
     } catch (cleanupError) {
       // Log cleanup errors to prevent disk space leaks

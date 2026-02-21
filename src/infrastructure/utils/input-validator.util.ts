@@ -8,23 +8,19 @@ import { IMAGE_URL_FIELDS } from './constants/image-fields.constants';
 import { isImageDataUri } from './validators/data-uri-validator.util';
 import { isNonEmptyString } from './validators/string-validator.util';
 
-/**
- * Detect potentially malicious content in strings
- * Returns true if suspicious patterns are found
- */
-function hasSuspiciousContent(value: string): boolean {
-  const suspiciousPatterns = [
-    /<script/i,                    // Script tags
-    /javascript:/i,                // javascript: protocol
-    /on\w+\s*=/i,                  // Event handlers (onclick=, onerror=, etc.)
-    /<iframe/i,                    // iframes
-    /<embed/i,                     // embed tags
-    /<object/i,                    // object tags
-    /data:(?!image\/)/i,          // data URLs that aren't images
-    /vbscript:/i,                  // vbscript protocol
-  ];
+const SUSPICIOUS_PATTERNS = [
+  /<script/i,
+  /javascript:/i,
+  /on\w+\s*=/i,
+  /<iframe/i,
+  /<embed/i,
+  /<object/i,
+  /data:(?!image\/)/i,
+  /vbscript:/i,
+] as const;
 
-  return suspiciousPatterns.some(pattern => pattern.test(value));
+function hasSuspiciousContent(value: string): boolean {
+  return SUSPICIOUS_PATTERNS.some(pattern => pattern.test(value));
 }
 
 /**
@@ -37,12 +33,11 @@ function isValidAndSafeUrl(value: string): boolean {
     try {
       const url = new URL(value);
       // Reject URLs with @ (potential auth bypass: http://attacker.com@internal.server/)
-      const urlAny = url as unknown as { hostname: string; username: string };
-      if (url.href.includes('@') && urlAny.username) {
+      if (url.href.includes('@') && url.username) {
         return false;
       }
       // Ensure domain exists
-      if (!urlAny.hostname || urlAny.hostname.length === 0) {
+      if (!url.hostname || url.hostname.length === 0) {
         return false;
       }
       return true;

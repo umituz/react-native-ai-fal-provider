@@ -79,7 +79,8 @@ export function createAiProviderInitModule(
 
         return Promise.resolve(true);
       } catch (error) {
-        return Promise.resolve(false);
+        console.error('[AiProviderInitModule] Initialization failed:', error);
+        throw error;
       }
     },
   };

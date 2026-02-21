@@ -9,7 +9,7 @@ import { mapFalError } from "../../infrastructure/utils/fal-error-handler.util";
 import { FalGenerationStateManager } from "../../infrastructure/utils/fal-generation-state-manager.util";
 import type { FalJobInput, FalQueueStatus } from "../../domain/entities/fal.types";
 import type { FalErrorInfo } from "../../domain/entities/error.types";
-import type { JobStatus } from "../../domain/types";
+import type { JobStatus, AILogEntry } from "../../domain/types";
 
 export interface UseFalGenerationOptions {
   timeoutMs?: number;
@@ -34,7 +34,7 @@ function convertJobStatusToFalQueueStatus(status: JobStatus, currentRequestId: s
   return {
     status: status.status as FalQueueStatus["status"],
     requestId: status.requestId ?? currentRequestId ?? "",
-    logs: status.logs?.map((log) => ({
+    logs: status.logs?.map((log: AILogEntry) => ({
       message: log.message,
       level: log.level,
       timestamp: log.timestamp,
