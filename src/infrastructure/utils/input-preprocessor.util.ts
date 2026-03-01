@@ -84,75 +84,73 @@ export async function preprocessInput(
   }
 
 
-  // Handle image_urls array (for multi-person generation)
-  if (Array.isArray(result.image_urls) && result.image_urls.length > 0) {
-    const imageUrls = result.image_urls as unknown[];
-    const uploadTasks: Array<{ index: number; url: string | Promise<string> }> = [];
-    const errors: string[] = [];
+  // Handle image URL arrays (image_urls, input_image_urls, reference_image_urls)
+  for (const arrayField of ["image_urls", "input_image_urls", "reference_image_urls"] as const) {
+    if (Array.isArray(result[arrayField]) && (result[arrayField] as unknown[]).length > 0) {
+      const imageUrls = result[arrayField] as unknown[];
+      const uploadTasks: Array<{ index: number; url: string | Promise<string> }> = [];
+      const errors: string[] = [];
 
-    for (let i = 0; i < imageUrls.length; i++) {
-      const imageUrl = imageUrls[i];
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
 
-      if (!imageUrl) {
-        errors.push(`image_urls[${i}] is null or undefined`);
-        continue;
+        if (!imageUrl) {
+          errors.push(`${arrayField}[${i}] is null or undefined`);
+          continue;
+        }
+
+        if (isBase64DataUri(imageUrl)) {
+          const uploadPromise = uploadToFalStorage(imageUrl)
+            .then((url) => url)
+            .catch((error) => {
+              const errorMessage = `Failed to upload ${arrayField}[${i}]: ${getErrorMessage(error)}`;
+              console.error(`[preprocessInput] ${errorMessage}`);
+              errors.push(errorMessage);
+              throw new Error(errorMessage);
+            });
+          uploadTasks.push({ index: i, url: uploadPromise });
+        } else if (typeof imageUrl === "string") {
+          uploadTasks.push({ index: i, url: imageUrl });
+        } else {
+          errors.push(`${arrayField}[${i}] has invalid type: ${typeof imageUrl}`);
+        }
       }
 
-      if (isBase64DataUri(imageUrl)) {
-        const uploadPromise = uploadToFalStorage(imageUrl)
-          .then((url) => url)
-          .catch((error) => {
-            const errorMessage = `Failed to upload image_urls[${i}]: ${getErrorMessage(error)}`;
-            console.error(`[preprocessInput] ${errorMessage}`);
-            errors.push(errorMessage);
-            throw new Error(errorMessage);
-          });
-        uploadTasks.push({ index: i, url: uploadPromise });
-      } else if (typeof imageUrl === "string") {
-        uploadTasks.push({ index: i, url: imageUrl });
-      } else {
-        errors.push(`image_urls[${i}] has invalid type: ${typeof imageUrl}`);
+      if (errors.length > 0) {
+        throw new Error(`Image URL validation failed:\n${errors.join('\n')}`);
       }
-    }
 
-    if (errors.length > 0) {
-      throw new Error(`Image URL validation failed:\n${errors.join('\n')}`);
-    }
-
-    // Validate that we have at least one valid image URL
-    if (uploadTasks.length === 0) {
-      throw new Error('image_urls array must contain at least one valid image URL');
-    }
-
-    // Wait for all uploads using Promise.allSettled to handle failures gracefully
-    // This ensures all uploads complete before reporting errors
-    const uploadResults = await Promise.allSettled(
-      uploadTasks.map((task) => Promise.resolve(task.url))
-    );
-
-    const processedUrls: string[] = [];
-    const uploadErrors: string[] = [];
-
-    uploadResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        processedUrls.push(result.value);
-      } else {
-        uploadErrors.push(
-          `Upload ${index} failed: ${getErrorMessage(result.reason)}`
-        );
+      if (uploadTasks.length === 0) {
+        throw new Error(`${arrayField} array must contain at least one valid image URL`);
       }
-    });
 
-    // If any uploads failed, throw with details
-    if (uploadErrors.length > 0) {
-      console.warn(
-        `[input-preprocessor] ${processedUrls.length} of ${uploadTasks.length} uploads succeeded. ` +
-        'Successful uploads remain in FAL storage.'
+      const uploadResults = await Promise.allSettled(
+        uploadTasks.map((task) => Promise.resolve(task.url))
       );
-      throw new Error(`Image upload failures:\n${uploadErrors.join('\n')}`);
-    }
 
-    result.image_urls = processedUrls;
+      const processedUrls: string[] = [];
+      const uploadErrors: string[] = [];
+
+      uploadResults.forEach((uploadResult, index) => {
+        if (uploadResult.status === 'fulfilled') {
+          processedUrls.push(uploadResult.value);
+        } else {
+          uploadErrors.push(
+            `Upload ${index} failed: ${getErrorMessage(uploadResult.reason)}`
+          );
+        }
+      });
+
+      if (uploadErrors.length > 0) {
+        console.warn(
+          `[input-preprocessor] ${processedUrls.length} of ${uploadTasks.length} uploads succeeded. ` +
+          'Successful uploads remain in FAL storage.'
+        );
+        throw new Error(`Image upload failures:\n${uploadErrors.join('\n')}`);
+      }
+
+      result[arrayField] = processedUrls;
+    }
   }
 
   // Wait for ALL uploads to complete (both individual keys and array)
