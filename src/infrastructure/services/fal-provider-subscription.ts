@@ -1,6 +1,12 @@
 /**
  * FAL Provider Subscription Handlers
- * Handles subscribe, run methods and cancellation logic
+ * Handles subscribe, run methods with retry, timeout, and cancellation
+ *
+ * Retry strategy for subscribe:
+ * - Retries on: network errors, timeouts, server errors (5xx)
+ * - NO retry on: auth, validation, NSFW, quota, user cancellation
+ * - Max 1 retry (2 total attempts) with 3s delay
+ * - Upload results are preserved (images already on CDN)
  */
 
 import { fal, ApiError, ValidationError } from "@fal-ai/client";
@@ -10,12 +16,12 @@ import { mapFalStatusToJobStatus } from "./fal-status-mapper";
 import { validateNSFWContent } from "../validators/nsfw-validator";
 import { NSFWContentError } from "./nsfw-content-error";
 import { isBase64DataUri } from "../utils/validators/data-uri-validator.util";
+import { generationLogCollector } from "../utils/log-collector";
 
-/**
- * Validate that FAL response images contain HTTPS URLs, never base64 data URIs.
- * FAL models should always return CDN URLs. If base64 is returned, it means the model
- * was called with sync_mode:true or wrong parameters. Throw an explicit error to catch early.
- */
+const TAG = 'fal-subscription';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 function validateNoBase64InResponse(data: unknown): void {
   if (!data || typeof data !== "object") return;
   const record = data as Record<string, unknown>;
@@ -41,10 +47,6 @@ function validateNoBase64InResponse(data: unknown): void {
   }
 }
 
-/**
- * Unwrap fal.subscribe / fal.run Result<T> = { data: T, requestId: string }
- * Throws if response format is unexpected - no silent fallbacks
- */
 function unwrapFalResult<T>(rawResult: unknown): { data: T; requestId: string } {
   if (!rawResult || typeof rawResult !== "object") {
     throw new Error(
@@ -69,10 +71,6 @@ function unwrapFalResult<T>(rawResult: unknown): { data: T; requestId: string } 
   return { data: result.data as T, requestId: result.requestId };
 }
 
-/**
- * Format fal-ai SDK errors into user-readable messages
- * Uses proper @fal-ai/client error types (ApiError, ValidationError)
- */
 function formatFalError(error: unknown): string {
   if (error instanceof ValidationError) {
     const details = error.fieldErrors;
@@ -83,7 +81,6 @@ function formatFalError(error: unknown): string {
   }
 
   if (error instanceof ApiError) {
-    // ApiError has .status, .body, .message
     if (error.status === 401 || error.status === 403) {
       return "Authentication failed. Please check your API key.";
     }
@@ -103,23 +100,57 @@ function formatFalError(error: unknown): string {
   return String(error);
 }
 
-/**
- * Handle FAL subscription with timeout and cancellation
- */
-export async function handleFalSubscription<T = unknown>(
-  model: string,
-  input: Record<string, unknown>,
-  options?: SubscribeOptions<T>,
-  signal?: AbortSignal
-): Promise<{ result: T; requestId: string }> {
-  const timeoutMs = options?.timeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
+// ─── Retry Logic ────────────────────────────────────────────────────────────
 
-  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 3600000) {
-    throw new Error(
-      `Invalid timeout: ${timeoutMs}ms. Must be a positive integer between 1 and 3600000ms (1 hour)`
-    );
+/**
+ * Determine if a subscribe error is retryable.
+ *
+ * Retryable:  network, timeout, server errors (500-504)
+ * NOT:        auth (401/403), validation (400/422), quota (402),
+ *             NSFW, user cancellation, rate limit (429 — FAL SDK already retries)
+ */
+function isRetryableSubscribeError(error: unknown): boolean {
+  // Never retry NSFW
+  if (error instanceof NSFWContentError) return false;
+
+  // Never retry user cancellation
+  if (error instanceof Error && error.message.includes("cancelled by user")) return false;
+
+  // ApiError — check status code
+  if (error instanceof ApiError) {
+    const status = error.status;
+    // 5xx server errors are retryable
+    if (status >= 500 && status <= 504) return true;
+    // Everything else (4xx) is not
+    return false;
   }
 
+  // ValidationError is never retryable
+  if (error instanceof ValidationError) return false;
+
+  // Generic Error — check message patterns
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("network")) return true;
+    if (msg.includes("timeout") || msg.includes("timed out")) return true;
+    if (msg.includes("fetch")) return true;
+    if (msg.includes("econnrefused") || msg.includes("enotfound")) return true;
+  }
+
+  return false;
+}
+
+// ─── Single Subscribe Attempt ───────────────────────────────────────────────
+
+async function singleSubscribeAttempt<T = unknown>(
+  model: string,
+  input: Record<string, unknown>,
+  options: SubscribeOptions<T> | undefined,
+  signal: AbortSignal | undefined,
+  timeoutMs: number,
+  attemptStart: number,
+  sessionId: string,
+): Promise<{ result: T; requestId: string }> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let abortHandler: (() => void) | null = null;
   let listenerAdded = false;
@@ -146,9 +177,8 @@ export async function handleFalSubscription<T = unknown>(
           const statusWithPosition = `${jobStatus.status}:${jobStatus.queuePosition ?? ""}`;
           if (statusWithPosition !== lastStatus) {
             lastStatus = statusWithPosition;
-            if (typeof __DEV__ !== "undefined" && __DEV__) {
-              console.log(`[fal-provider] Job Status Update: ${jobStatus.status}${jobStatus.queuePosition ? ` (Position: ${jobStatus.queuePosition})` : ""}`);
-            }
+            const elapsed = Date.now() - attemptStart;
+            generationLogCollector.log(sessionId, TAG, `[${elapsed}ms] Queue: ${jobStatus.status}${jobStatus.queuePosition ? ` (pos: ${jobStatus.queuePosition})` : ""}`);
             if (options?.onProgress) {
               if (jobStatus.status === "IN_QUEUE" || jobStatus.status === "IN_PROGRESS") {
                 options.onProgress({ progress: -1, status: jobStatus.status });
@@ -176,7 +206,6 @@ export async function handleFalSubscription<T = unknown>(
         listenerAdded = true;
       });
       promises.push(abortPromise);
-      // Check after listener is attached to close the race window
       if (signal.aborted) {
         throw new Error("Request cancelled by user");
       }
@@ -185,42 +214,123 @@ export async function handleFalSubscription<T = unknown>(
     const rawResult = await Promise.race(promises);
     const { data, requestId } = unwrapFalResult<T>(rawResult);
 
-    // Validate response for base64 data URIs
-    // Since we use subscribe, we should always get CDN URLs, not base64 data URIs
     validateNoBase64InResponse(data);
     validateNSFWContent(data as Record<string, unknown>);
 
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.log(`[fal-provider] Subscription completed successfully. Request ID: ${requestId}`);
-    }
-
     options?.onResult?.(data);
     return { result: data, requestId };
-  } catch (error) {
-    if (error instanceof NSFWContentError) {
-      throw error;
-    }
-
-    const message = formatFalError(error);
-    throw new Error(message);
   } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
+    if (timeoutId) clearTimeout(timeoutId);
     if (listenerAdded && abortHandler && signal) {
       signal.removeEventListener("abort", abortHandler);
     }
   }
 }
 
+// ─── Public API ─────────────────────────────────────────────────────────────
+
 /**
- * Handle FAL run with NSFW validation
+ * Handle FAL subscription with timeout, cancellation, and retry.
+ *
+ * Retry is safe here because:
+ * - Input is already preprocessed (images uploaded to FAL CDN)
+ * - fal.subscribe is idempotent (same input → same generation)
+ * - Only retries on transient errors (network/timeout/5xx)
+ */
+export async function handleFalSubscription<T = unknown>(
+  model: string,
+  input: Record<string, unknown>,
+  sessionId: string,
+  options?: SubscribeOptions<T>,
+  signal?: AbortSignal,
+): Promise<{ result: T; requestId: string }> {
+  const overallStart = Date.now();
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_FAL_CONFIG.defaultTimeoutMs;
+  const maxRetries = DEFAULT_FAL_CONFIG.subscribeMaxRetries;
+  const retryDelay = DEFAULT_FAL_CONFIG.subscribeRetryDelayMs;
+
+  generationLogCollector.log(sessionId, TAG, `Starting subscription for model: ${model}`, {
+    timeoutMs,
+    maxRetries,
+    inputKeys: Object.keys(input),
+  });
+
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 3600000) {
+    throw new Error(
+      `Invalid timeout: ${timeoutMs}ms. Must be a positive integer between 1 and 3600000ms (1 hour)`
+    );
+  }
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const attemptStart = Date.now();
+
+    if (attempt > 0) {
+      generationLogCollector.warn(sessionId, TAG, `Retry ${attempt}/${maxRetries} after ${retryDelay}ms delay...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+
+      // Check if cancelled during delay
+      if (signal?.aborted) {
+        throw new Error("Request cancelled by user");
+      }
+    }
+
+    try {
+      generationLogCollector.log(sessionId, TAG, `Attempt ${attempt + 1}/${maxRetries + 1} starting...`);
+
+      const result = await singleSubscribeAttempt<T>(
+        model, input, options, signal, timeoutMs, attemptStart, sessionId,
+      );
+
+      const totalElapsed = Date.now() - overallStart;
+      const suffix = attempt > 0 ? ` (succeeded on retry ${attempt})` : '';
+      generationLogCollector.log(sessionId, TAG, `Subscription completed in ${totalElapsed}ms${suffix}. Request ID: ${result.requestId}`);
+
+      return result;
+    } catch (error) {
+      lastError = error;
+      const attemptElapsed = Date.now() - attemptStart;
+
+      // NSFW errors never retry — re-throw immediately
+      if (error instanceof NSFWContentError) {
+        generationLogCollector.warn(sessionId, TAG, `NSFW content detected after ${attemptElapsed}ms`);
+        throw error;
+      }
+
+      const message = formatFalError(error);
+
+      // Check if retryable and we have attempts left
+      if (attempt < maxRetries && isRetryableSubscribeError(error)) {
+        generationLogCollector.warn(sessionId, TAG, `Attempt ${attempt + 1} failed after ${attemptElapsed}ms (retryable): ${message}`);
+        continue;
+      }
+
+      // Not retryable or no retries left
+      const totalElapsed = Date.now() - overallStart;
+      const retryInfo = attempt > 0 ? ` after ${attempt + 1} attempts` : '';
+      generationLogCollector.error(sessionId, TAG, `Subscription FAILED in ${totalElapsed}ms${retryInfo}: ${message}`);
+      throw new Error(message);
+    }
+  }
+
+  // Should never reach here, but TypeScript needs it
+  throw lastError;
+}
+
+/**
+ * Handle FAL run with NSFW validation (no retry — runs are fast/synchronous)
  */
 export async function handleFalRun<T = unknown>(
   model: string,
   input: Record<string, unknown>,
-  options?: RunOptions
+  sessionId: string,
+  options?: RunOptions,
 ): Promise<T> {
+  const runTag = 'fal-run';
+  const startTime = Date.now();
+  generationLogCollector.log(sessionId, runTag, `Starting run for model: ${model}`);
+
   options?.onProgress?.({ progress: -1, status: "IN_PROGRESS" as const });
 
   try {
@@ -230,14 +340,21 @@ export async function handleFalRun<T = unknown>(
     validateNoBase64InResponse(data);
     validateNSFWContent(data as Record<string, unknown>);
 
+    const elapsed = Date.now() - startTime;
+    generationLogCollector.log(sessionId, runTag, `Run completed in ${elapsed}ms`);
+
     options?.onProgress?.({ progress: 100, status: "COMPLETED" as const });
     return data;
   } catch (error) {
+    const elapsed = Date.now() - startTime;
+
     if (error instanceof NSFWContentError) {
+      generationLogCollector.warn(sessionId, runTag, `NSFW content detected after ${elapsed}ms`);
       throw error;
     }
 
     const message = formatFalError(error);
+    generationLogCollector.error(sessionId, runTag, `Run FAILED after ${elapsed}ms for model ${model}: ${message}`);
     throw new Error(message);
   }
 }

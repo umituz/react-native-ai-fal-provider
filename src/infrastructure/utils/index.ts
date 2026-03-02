@@ -41,6 +41,9 @@ export {
 
 export { preprocessInput } from "./input-preprocessor.util";
 
+export { generationLogCollector } from "./log-collector";
+export type { LogEntry } from "./log-collector";
+
 export { FalGenerationStateManager } from "./fal-generation-state-manager.util";
 export type { GenerationState } from "./fal-generation-state-manager.util";
 

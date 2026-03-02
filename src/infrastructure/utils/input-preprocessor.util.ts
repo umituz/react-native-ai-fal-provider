@@ -1,16 +1,20 @@
 /**
  * Input Preprocessor Utility
  * Detects and uploads base64/local file images to FAL storage before API calls
+ *
+ * Upload strategy:
+ * - Array fields (image_urls): SEQUENTIAL uploads to avoid bandwidth contention
+ * - Individual fields (image_url, face_image_url): parallel (typically only 1)
  */
 
 import { uploadToFalStorage, uploadLocalFileToFalStorage } from "./fal-storage.util";
 import { getErrorMessage } from './helpers/error-helpers.util';
 import { IMAGE_URL_FIELDS } from './constants/image-fields.constants';
 import { isImageDataUri as isBase64DataUri } from './validators/data-uri-validator.util';
+import { generationLogCollector } from './log-collector';
 
-/**
- * Check if a value is a local file URI (file:// or content://)
- */
+const TAG = 'preprocessor';
+
 function isLocalFileUri(value: unknown): value is string {
   return typeof value === "string" && (
     value.startsWith("file://") || value.startsWith("content://")
@@ -18,166 +22,153 @@ function isLocalFileUri(value: unknown): value is string {
 }
 
 /**
+ * Classify a network error into a user-friendly message.
+ * Technical details are preserved in Firestore logs/session subcollection.
+ */
+function classifyUploadError(errorMsg: string): string {
+  const lower = errorMsg.toLowerCase();
+
+  if (lower.includes('timed out') || lower.includes('timeout')) {
+    return 'Photo upload took too long. Please try again on a stronger connection (WiFi recommended).';
+  }
+  if (lower.includes('network request failed') || lower.includes('network') || lower.includes('fetch')) {
+    return 'Photo upload failed due to network issues. Please check your internet connection and try again.';
+  }
+  if (lower.includes('econnrefused') || lower.includes('enotfound')) {
+    return 'Could not reach the upload server. Please check your internet connection and try again.';
+  }
+
+  return errorMsg;
+}
+
+/**
  * Preprocess input by uploading base64/local file images to FAL storage.
  * Also strips sync_mode to prevent base64 data URI responses.
  * Returns input with HTTPS URLs instead of base64/local URIs.
+ *
+ * Array fields are uploaded SEQUENTIALLY to avoid bandwidth contention
+ * on slow mobile connections (prevents simultaneous upload failures).
  */
 export async function preprocessInput(
   input: Record<string, unknown>,
+  sessionId: string,
 ): Promise<Record<string, unknown>> {
-  if (typeof __DEV__ !== "undefined" && __DEV__) {
-    console.log("[preprocessInput] Starting input preprocessing...", {
-      keys: Object.keys(input)
-    });
-  }
+  const startTime = Date.now();
+  const inputKeys = Object.keys(input);
+  generationLogCollector.log(sessionId, TAG, `Starting preprocessing...`, { keys: inputKeys });
 
   const result = { ...input };
   const uploadPromises: Promise<unknown>[] = [];
 
-  // SAFETY: Strip sync_mode to prevent base64 data URI responses
-  // FAL returns base64 when sync_mode:true — we always want CDN URLs
   if ("sync_mode" in result) {
     delete result.sync_mode;
-    if (typeof __DEV__ !== "undefined" && __DEV__) {
-      console.warn(
-        "[preprocessInput] Stripped sync_mode from input. " +
-        "sync_mode:true returns base64 data URIs which break Firestore persistence. " +
-        "Use falProvider.subscribe() for CDN URLs."
-      );
-    }
+    generationLogCollector.warn(sessionId, TAG, `Stripped sync_mode from input`);
   }
 
-  // Handle individual image URL keys
+  // Handle individual image URL keys (parallel — typically only 1 field)
+  let individualUploadCount = 0;
   for (const key of IMAGE_URL_FIELDS) {
     const value = result[key];
 
-    // Upload base64 data URIs to FAL storage
     if (isBase64DataUri(value)) {
-      const uploadPromise = uploadToFalStorage(value)
+      individualUploadCount++;
+      generationLogCollector.log(sessionId, TAG, `Found base64 field: ${key} (${Math.round(String(value).length / 1024)}KB)`);
+      const uploadPromise = uploadToFalStorage(value, sessionId)
         .then((url) => {
           result[key] = url;
           return url;
         })
         .catch((error) => {
           const errorMessage = `Failed to upload ${key}: ${getErrorMessage(error)}`;
-          console.error(`[preprocessInput] ${errorMessage}`);
+          generationLogCollector.error(sessionId, TAG, errorMessage);
           throw new Error(errorMessage);
         });
-
       uploadPromises.push(uploadPromise);
-    }
-    // Upload local file URIs to FAL storage (file://, content://)
-    else if (isLocalFileUri(value)) {
-      const uploadPromise = uploadLocalFileToFalStorage(value)
+    } else if (isLocalFileUri(value)) {
+      individualUploadCount++;
+      generationLogCollector.log(sessionId, TAG, `Found local file field: ${key}`);
+      const uploadPromise = uploadLocalFileToFalStorage(value, sessionId)
         .then((url) => {
           result[key] = url;
           return url;
         })
         .catch((error) => {
           const errorMessage = `Failed to upload local file ${key}: ${getErrorMessage(error)}`;
-          console.error(`[preprocessInput] ${errorMessage}`);
+          generationLogCollector.error(sessionId, TAG, errorMessage);
           throw new Error(errorMessage);
         });
-
       uploadPromises.push(uploadPromise);
     }
   }
 
+  if (individualUploadCount > 0) {
+    generationLogCollector.log(sessionId, TAG, `${individualUploadCount} individual field upload(s) queued`);
+  }
 
-  // Handle image URL arrays (image_urls, input_image_urls, reference_image_urls)
+  // Handle image URL arrays — SEQUENTIAL to avoid bandwidth contention
   for (const arrayField of ["image_urls", "input_image_urls", "reference_image_urls"] as const) {
     if (Array.isArray(result[arrayField]) && (result[arrayField] as unknown[]).length > 0) {
       const imageUrls = result[arrayField] as unknown[];
-      const uploadTasks: Array<{ index: number; url: string | Promise<string> }> = [];
-      const errors: string[] = [];
+      generationLogCollector.log(sessionId, TAG, `Processing ${arrayField}: ${imageUrls.length} item(s) (sequential)`);
+
+      const processedUrls: string[] = [];
+      const arrayStartTime = Date.now();
 
       for (let i = 0; i < imageUrls.length; i++) {
         const imageUrl = imageUrls[i];
 
         if (!imageUrl) {
-          errors.push(`${arrayField}[${i}] is null or undefined`);
-          continue;
+          throw new Error(`${arrayField}[${i}] is null or undefined`);
         }
 
         if (isBase64DataUri(imageUrl)) {
-          const uploadPromise = uploadToFalStorage(imageUrl)
-            .then((url) => url)
-            .catch((error) => {
-              const errorMessage = `Failed to upload ${arrayField}[${i}]: ${getErrorMessage(error)}`;
-              console.error(`[preprocessInput] ${errorMessage}`);
-              errors.push(errorMessage);
-              throw new Error(errorMessage);
-            });
-          uploadTasks.push({ index: i, url: uploadPromise });
+          const sizeKB = Math.round(String(imageUrl).length / 1024);
+          generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: base64 (${sizeKB}KB) - uploading...`);
+
+          try {
+            const url = await uploadToFalStorage(imageUrl, sessionId);
+            processedUrls.push(url);
+            generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: upload OK`);
+          } catch (error) {
+            const elapsed = Date.now() - arrayStartTime;
+            const technicalMsg = getErrorMessage(error);
+            generationLogCollector.error(sessionId, TAG, `${arrayField}[${i}] upload FAILED after ${elapsed}ms: ${technicalMsg}`);
+            throw new Error(classifyUploadError(technicalMsg));
+          }
         } else if (typeof imageUrl === "string") {
-          uploadTasks.push({ index: i, url: imageUrl });
+          generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: already URL - pass through`);
+          processedUrls.push(imageUrl);
         } else {
-          errors.push(`${arrayField}[${i}] has invalid type: ${typeof imageUrl}`);
+          throw new Error(`${arrayField}[${i}] has invalid type: ${typeof imageUrl}`);
         }
       }
 
-      if (errors.length > 0) {
-        throw new Error(`Image URL validation failed:\n${errors.join('\n')}`);
-      }
-
-      if (uploadTasks.length === 0) {
-        throw new Error(`${arrayField} array must contain at least one valid image URL`);
-      }
-
-      const uploadResults = await Promise.allSettled(
-        uploadTasks.map((task) => Promise.resolve(task.url))
-      );
-
-      const processedUrls: string[] = [];
-      const uploadErrors: string[] = [];
-
-      uploadResults.forEach((uploadResult, index) => {
-        if (uploadResult.status === 'fulfilled') {
-          processedUrls.push(uploadResult.value);
-        } else {
-          uploadErrors.push(
-            `Upload ${index} failed: ${getErrorMessage(uploadResult.reason)}`
-          );
-        }
-      });
-
-      if (uploadErrors.length > 0) {
-        console.warn(
-          `[input-preprocessor] ${processedUrls.length} of ${uploadTasks.length} uploads succeeded. ` +
-          'Successful uploads remain in FAL storage.'
-        );
-        throw new Error(`Image upload failures:\n${uploadErrors.join('\n')}`);
-      }
-
+      const arrayElapsed = Date.now() - arrayStartTime;
+      generationLogCollector.log(sessionId, TAG, `${arrayField}: all ${processedUrls.length} upload(s) succeeded in ${arrayElapsed}ms`);
       result[arrayField] = processedUrls;
     }
   }
 
-  // Wait for ALL uploads to complete (both individual keys and array)
-  // Use Promise.allSettled to handle partial failures gracefully
+  // Wait for ALL individual field uploads
   if (uploadPromises.length > 0) {
+    generationLogCollector.log(sessionId, TAG, `Waiting for ${uploadPromises.length} individual field upload(s)...`);
     const individualUploadResults = await Promise.allSettled(uploadPromises);
 
     const failedUploads = individualUploadResults.filter(
-      (result) => result.status === 'rejected'
+      (r) => r.status === 'rejected'
     );
 
     if (failedUploads.length > 0) {
       const successCount = individualUploadResults.length - failedUploads.length;
-      console.warn(
-        `[input-preprocessor] ${successCount} of ${individualUploadResults.length} individual field uploads succeeded. ` +
-        'Successful uploads remain in FAL storage.'
+      const errorMessages = failedUploads.map((r) =>
+        r.status === 'rejected' ? getErrorMessage(r.reason) : 'Unknown error'
       );
-
-      const errorMessages = failedUploads.map((result) =>
-        result.status === 'rejected'
-          ? (getErrorMessage(result.reason))
-          : 'Unknown error'
-      );
-
-      throw new Error(`Some image uploads failed:\n${errorMessages.join('\n')}`);
+      generationLogCollector.error(sessionId, TAG, `Individual uploads: ${successCount}/${individualUploadResults.length} succeeded`, { errors: errorMessages });
+      throw new Error(classifyUploadError(errorMessages[0]));
     }
   }
 
+  const totalElapsed = Date.now() - startTime;
+  generationLogCollector.log(sessionId, TAG, `Preprocessing complete in ${totalElapsed}ms`);
   return result;
 }

@@ -1,5 +1,6 @@
 /**
  * FAL Provider - Implements IAIProvider interface
+ * Each subscribe/run call creates an isolated log session via sessionId.
  */
 
 import { fal } from "@fal-ai/client";
@@ -11,6 +12,8 @@ import type {
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
 import { preprocessInput } from "../utils";
+import { generationLogCollector } from "../utils/log-collector";
+import type { LogEntry } from "../utils/log-collector";
 import {
   createRequestKey, getExistingRequest, storeRequest,
   removeRequest, cancelRequest, cancelAllRequests, hasActiveRequests,
@@ -74,7 +77,9 @@ export class FalProvider implements IAIProvider {
   async submitJob(model: string, input: Record<string, unknown>): Promise<JobSubmission> {
     this.validateInit();
     validateInput(model, input);
-    const processedInput = await preprocessInput(input);
+    const sessionId = generationLogCollector.startSession();
+    generationLogCollector.log(sessionId, 'fal-provider', `submitJob() for model: ${model}`);
+    const processedInput = await preprocessInput(input, sessionId);
     return queueOps.submitJob(model, processedInput);
   }
 
@@ -93,14 +98,27 @@ export class FalProvider implements IAIProvider {
     input: Record<string, unknown>,
     options?: SubscribeOptions<T>,
   ): Promise<T> {
+    const TAG = 'fal-provider';
+    const totalStart = Date.now();
     this.validateInit();
     validateInput(model, input);
 
-    const processedInput = await preprocessInput(input);
+    // Start a fresh log session for this generation
+    const sessionId = generationLogCollector.startSession();
+    generationLogCollector.log(sessionId, TAG, `subscribe() called for model: ${model}`);
+
+    const preprocessStart = Date.now();
+    const processedInput = await preprocessInput(input, sessionId);
+    const preprocessElapsed = Date.now() - preprocessStart;
+    generationLogCollector.log(sessionId, TAG, `Preprocessing done in ${preprocessElapsed}ms`);
+
     const key = createRequestKey(model, processedInput);
 
     const existing = getExistingRequest<T>(key);
-    if (existing) return existing.promise;
+    if (existing) {
+      generationLogCollector.log(sessionId, TAG, `Dedup hit - returning existing request`);
+      return existing.promise;
+    }
 
     const abortController = new AbortController();
 
@@ -114,19 +132,27 @@ export class FalProvider implements IAIProvider {
     this.lastRequestKey = key;
     storeRequest(key, { promise, abortController, createdAt: Date.now() });
 
-    handleFalSubscription<T>(model, processedInput, options, abortController.signal)
-      .then((res) => resolvePromise(res.result))
-      .catch((error) => rejectPromise(error))
+    handleFalSubscription<T>(model, processedInput, sessionId, options, abortController.signal)
+      .then((res) => {
+        const totalElapsed = Date.now() - totalStart;
+        generationLogCollector.log(sessionId, TAG, `Generation SUCCESS in ${totalElapsed}ms (preprocess: ${preprocessElapsed}ms)`);
+        // Attach providerSessionId to result for concurrent-safe log retrieval
+        const result = res.result;
+        if (result && typeof result === 'object') {
+          Object.defineProperty(result, '__providerSessionId', { value: sessionId, enumerable: false });
+        }
+        resolvePromise(result);
+      })
+      .catch((error) => {
+        const totalElapsed = Date.now() - totalStart;
+        generationLogCollector.error(sessionId, TAG, `Generation FAILED in ${totalElapsed}ms: ${error instanceof Error ? error.message : String(error)}`);
+        rejectPromise(error);
+      })
       .finally(() => {
         try {
           removeRequest(key);
         } catch (cleanupError) {
-          if (typeof __DEV__ !== "undefined" && __DEV__) {
-            console.error(
-              `[fal-provider] Error removing request: ${key}`,
-              cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
-            );
-          }
+          generationLogCollector.warn(sessionId, TAG, `Error removing request: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
         }
       });
 
@@ -136,14 +162,23 @@ export class FalProvider implements IAIProvider {
   async run<T = unknown>(model: string, input: Record<string, unknown>, options?: RunOptions): Promise<T> {
     this.validateInit();
     validateInput(model, input);
-    const processedInput = await preprocessInput(input);
+
+    const sessionId = generationLogCollector.startSession();
+    generationLogCollector.log(sessionId, 'fal-provider', `run() for model: ${model}`);
+
+    const processedInput = await preprocessInput(input, sessionId);
 
     const signal = options?.signal;
     if (signal?.aborted) {
       throw new Error("Request cancelled by user");
     }
 
-    return handleFalRun<T>(model, processedInput, options);
+    const result = await handleFalRun<T>(model, processedInput, sessionId, options);
+    // Attach providerSessionId to result for concurrent-safe log retrieval
+    if (result && typeof result === 'object') {
+      Object.defineProperty(result, '__providerSessionId', { value: sessionId, enumerable: false });
+    }
+    return result;
   }
 
   reset(): void {
@@ -154,7 +189,6 @@ export class FalProvider implements IAIProvider {
   }
 
   cancelCurrentRequest(): void {
-    // Cancel only this provider instance's last request, not all global requests
     if (this.lastRequestKey) {
       cancelRequest(this.lastRequestKey);
       this.lastRequestKey = null;
@@ -163,6 +197,24 @@ export class FalProvider implements IAIProvider {
 
   hasRunningRequest(): boolean {
     return hasActiveRequests();
+  }
+
+  /**
+   * Get log entries for a specific provider session.
+   * Extract sessionId from result.__providerSessionId for concurrent safety.
+   */
+  getSessionLogs(sessionId?: string): LogEntry[] {
+    if (!sessionId) return [];
+    return generationLogCollector.getEntries(sessionId);
+  }
+
+  /**
+   * End a provider log session and return all entries. Clears the buffer.
+   * Extract sessionId from result.__providerSessionId for concurrent safety.
+   */
+  endLogSession(sessionId?: string): LogEntry[] {
+    if (!sessionId) return [];
+    return generationLogCollector.endSession(sessionId);
   }
 }
 
