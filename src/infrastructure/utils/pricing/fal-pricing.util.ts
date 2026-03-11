@@ -35,11 +35,11 @@ export function calculateVideoCredits(
       : COSTS.VIDEO_720P_PER_SECOND;
   let cost = costPerSec * duration;
   if (hasImageInput) cost += COSTS.IMAGE_INPUT;
-  return Math.ceil((cost * MARKUP) / CREDIT_PRICE);
+  return Math.max(1, Math.ceil((cost * MARKUP) / CREDIT_PRICE));
 }
 
 export function calculateImageCredits(): number {
-  return Math.ceil((COSTS.IMAGE * MARKUP) / CREDIT_PRICE);
+  return Math.max(1, Math.ceil((COSTS.IMAGE * MARKUP) / CREDIT_PRICE));
 }
 
 export function calculateCreditsFromConfig(

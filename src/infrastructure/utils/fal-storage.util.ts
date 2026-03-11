@@ -47,13 +47,13 @@ async function withRetry<T>(
       return await fn();
     } catch (error) {
       lastError = error;
-      const errorMsg = getErrorMessage(error);
+      const errorMsg = getErrorMessage(error).toLowerCase();
       const isTransient =
-        errorMsg.toLowerCase().includes('network') ||
+        errorMsg.includes('network') ||
         errorMsg.includes('timeout') ||
         errorMsg.includes('timed out') ||
-        errorMsg.includes('ECONNREFUSED') ||
-        errorMsg.includes('ENOTFOUND') ||
+        errorMsg.includes('econnrefused') ||
+        errorMsg.includes('enotfound') ||
         errorMsg.includes('fetch');
 
       if (attempt < maxRetries && isTransient) {

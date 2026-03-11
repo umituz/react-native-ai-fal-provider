@@ -54,6 +54,22 @@ export interface TextToVideoOptions {
   readonly resolution?: string;
 }
 
+/**
+ * Options for text-to-voice generation (TTS)
+ */
+export interface TextToVoiceOptions {
+  /** Text content to convert to speech (required) */
+  readonly text: string;
+  /** Voice preset name (model-specific, e.g., "aria", "marcus") */
+  readonly voice?: string;
+  /** Language code (e.g., "en", "es", "fr") */
+  readonly language?: string;
+  /** Exaggeration factor for voice expressiveness (0.0 - 1.0) */
+  readonly exaggeration?: number;
+  /** CFG/pace control weight */
+  readonly cfgWeight?: number;
+}
+
 export interface FaceSwapOptions {
   readonly enhanceFaces?: boolean;
 }

@@ -55,10 +55,14 @@ export function validateNSFWContent(result: Record<string, unknown>): void {
     throw new NSFWContentError();
   }
 
-  // Format 5: content_policy_violation object
-  const policyViolation = result?.content_policy_violation as { type: string; severity?: string } | undefined;
+  // Format 5: content_policy_violation — boolean true or object with type field
+  const policyViolation = result?.content_policy_violation;
+  if (policyViolation === true) {
+    throw new NSFWContentError();
+  }
   if (policyViolation && typeof policyViolation === "object") {
-    const type = (policyViolation.type || "").toLowerCase();
+    const typed = policyViolation as { type?: string; severity?: string };
+    const type = (typed.type || "").toLowerCase();
     if (type.includes("nsfw") || type.includes("adult") || type.includes("explicit")) {
       throw new NSFWContentError();
     }

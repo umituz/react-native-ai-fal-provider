@@ -310,7 +310,9 @@ export async function handleFalSubscription<T = unknown>(
       const totalElapsed = Date.now() - overallStart;
       const retryInfo = attempt > 0 ? ` after ${attempt + 1} attempts` : '';
       generationLogCollector.error(sessionId, TAG, `Subscription FAILED in ${totalElapsed}ms${retryInfo}: ${message}`);
-      throw new Error(message);
+      // Re-throw original error to preserve type info (ApiError, ValidationError, etc.)
+      // so downstream mapFalError() can categorize by HTTP status code
+      throw error;
     }
   }
 
@@ -334,7 +336,10 @@ export async function handleFalRun<T = unknown>(
   options?.onProgress?.({ progress: -1, status: "IN_PROGRESS" as const });
 
   try {
-    const rawResult = await fal.run(model, { input });
+    const rawResult = await fal.run(model, {
+      input,
+      ...(options?.signal && { abortSignal: options.signal }),
+    });
     const { data } = unwrapFalResult<T>(rawResult);
 
     validateNoBase64InResponse(data);
@@ -355,6 +360,7 @@ export async function handleFalRun<T = unknown>(
 
     const message = formatFalError(error);
     generationLogCollector.error(sessionId, runTag, `Run FAILED after ${elapsed}ms for model ${model}: ${message}`);
-    throw new Error(message);
+    // Re-throw original error to preserve type info for downstream mapFalError()
+    throw error;
   }
 }

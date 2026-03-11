@@ -12,24 +12,23 @@ import { falProvider } from '../infrastructure/services';
  */
 export function initializeFalProvider(config: {
   apiKey: string | undefined;
+  /** When true (default), sets this provider as the active/default provider */
+  setAsActive?: boolean;
 }): boolean {
-  try {
-    const { apiKey } = config;
+  const { apiKey, setAsActive = true } = config;
 
-    if (!apiKey) {
-      return false;
-    }
-
-    falProvider.initialize({ apiKey });
-
-    if (!providerRegistry.hasProvider(falProvider.providerId)) {
-      providerRegistry.register(falProvider);
-    }
-    providerRegistry.setActiveProvider(falProvider.providerId);
-
-    return true;
-  } catch (error) {
-    console.error('[initializeFalProvider] Initialization failed:', error);
-    throw error;
+  if (!apiKey) {
+    return false;
   }
+
+  falProvider.initialize({ apiKey });
+
+  if (!providerRegistry.hasProvider(falProvider.providerId)) {
+    providerRegistry.register(falProvider);
+  }
+  if (setAsActive) {
+    providerRegistry.setActiveProvider(falProvider.providerId);
+  }
+
+  return true;
 }

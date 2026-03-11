@@ -33,6 +33,7 @@ export type {
   ReplaceBackgroundOptions,
   VideoFromImageOptions,
   TextToVideoOptions,
+  TextToVoiceOptions,
   ImageFeatureType,
   VideoFeatureType,
   AIProviderConfig,

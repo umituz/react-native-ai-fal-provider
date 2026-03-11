@@ -12,6 +12,7 @@ import type {
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
 import { preprocessInput } from "../utils";
+import { getErrorMessage } from "../utils/helpers/error-helpers.util";
 import { generationLogCollector } from "../utils/log-collector";
 import type { LogEntry } from "../utils/log-collector";
 import {
@@ -79,8 +80,15 @@ export class FalProvider implements IAIProvider {
     validateInput(model, input);
     const sessionId = generationLogCollector.startSession();
     generationLogCollector.log(sessionId, 'fal-provider', `submitJob() for model: ${model}`);
-    const processedInput = await preprocessInput(input, sessionId);
-    return queueOps.submitJob(model, processedInput);
+    try {
+      const processedInput = await preprocessInput(input, sessionId);
+      const result = await queueOps.submitJob(model, processedInput);
+      generationLogCollector.endSession(sessionId);
+      return result;
+    } catch (error) {
+      generationLogCollector.endSession(sessionId);
+      throw error;
+    }
   }
 
   async getJobStatus(model: string, requestId: string): Promise<JobStatus> {
@@ -145,14 +153,17 @@ export class FalProvider implements IAIProvider {
       })
       .catch((error) => {
         const totalElapsed = Date.now() - totalStart;
-        generationLogCollector.error(sessionId, TAG, `Generation FAILED in ${totalElapsed}ms: ${error instanceof Error ? error.message : String(error)}`);
+        generationLogCollector.error(sessionId, TAG, `Generation FAILED in ${totalElapsed}ms: ${getErrorMessage(error)}`);
+        // End the log session on failure — consumer can't access sessionId from errors,
+        // so auto-cleanup prevents memory leak from orphaned sessions
+        generationLogCollector.endSession(sessionId);
         rejectPromise(error);
       })
       .finally(() => {
         try {
           removeRequest(key);
         } catch (cleanupError) {
-          generationLogCollector.warn(sessionId, TAG, `Error removing request: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
+          generationLogCollector.warn(sessionId, TAG, `Error removing request: ${getErrorMessage(cleanupError)}`);
         }
       });
 
@@ -170,15 +181,21 @@ export class FalProvider implements IAIProvider {
 
     const signal = options?.signal;
     if (signal?.aborted) {
+      generationLogCollector.endSession(sessionId);
       throw new Error("Request cancelled by user");
     }
 
-    const result = await handleFalRun<T>(model, processedInput, sessionId, options);
-    // Attach providerSessionId to result for concurrent-safe log retrieval
-    if (result && typeof result === 'object') {
-      Object.defineProperty(result, '__providerSessionId', { value: sessionId, enumerable: false });
+    try {
+      const result = await handleFalRun<T>(model, processedInput, sessionId, options);
+      // Attach providerSessionId to result for concurrent-safe log retrieval
+      if (result && typeof result === 'object') {
+        Object.defineProperty(result, '__providerSessionId', { value: sessionId, enumerable: false });
+      }
+      return result;
+    } catch (error) {
+      generationLogCollector.endSession(sessionId);
+      throw error;
     }
-    return result;
   }
 
   reset(): void {

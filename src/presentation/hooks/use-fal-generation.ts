@@ -50,6 +50,7 @@ export function useFalGeneration<T = unknown>(
   const [error, setError] = useState<FalErrorInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
 
   const stateManagerRef = useRef<FalGenerationStateManager<T> | null>(null);
   const optionsRef = useRef(options);
@@ -76,14 +77,12 @@ export function useFalGeneration<T = unknown>(
         stateManagerRef.current = null;
       }
 
-      // Cancel any running requests
-      if (falProvider.hasRunningRequest()) {
-        try {
-          falProvider.cancelCurrentRequest();
-        } catch (error) {
-          console.warn('[useFalGeneration] Error cancelling request on unmount:', error);
-        }
-      }
+      // On unmount, do NOT cancel via falProvider.cancelCurrentRequest() —
+      // it only tracks the LAST started request across ALL hook instances.
+      // If another component started a generation after us, cancelling here
+      // would kill THEIR request, not ours. Instead, rely on checkMounted()
+      // to silently discard results for this unmounted component.
+      // The user-initiated cancel() function still works for explicit cancellation.
     };
   }, []); // Empty deps - only run on mount/unmount
 
@@ -97,12 +96,16 @@ export function useFalGeneration<T = unknown>(
       setError(null);
       setData(null);
       stateManager.setCurrentRequestId(null);
+      setRequestId(null);
       setIsCancelling(false);
 
       try {
         const result = await falProvider.subscribe<T>(modelEndpoint, input, {
           timeoutMs: optionsRef.current?.timeoutMs,
           onQueueUpdate: (status: JobStatus) => {
+            if (status.requestId && status.requestId !== stateManager.getCurrentRequestId()) {
+              setRequestId(status.requestId);
+            }
             const falStatus = convertJobStatusToFalQueueStatus(
               status,
               stateManager.getCurrentRequestId()
@@ -153,10 +156,9 @@ export function useFalGeneration<T = unknown>(
     setError(null);
     setIsLoading(false);
     setIsCancelling(false);
+    setRequestId(null);
     stateManagerRef.current?.clearLastRequest();
   }, [cancel]);
-
-  const requestId = stateManagerRef.current?.getCurrentRequestId() ?? null;
 
   return {
     data,

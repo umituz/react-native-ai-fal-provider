@@ -135,6 +135,19 @@ export async function preprocessInput(
             generationLogCollector.error(sessionId, TAG, `${arrayField}[${i}] upload FAILED after ${elapsed}ms: ${technicalMsg}`);
             throw new Error(classifyUploadError(technicalMsg));
           }
+        } else if (isLocalFileUri(imageUrl)) {
+          generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: local file - uploading...`);
+
+          try {
+            const url = await uploadLocalFileToFalStorage(imageUrl, sessionId);
+            processedUrls.push(url);
+            generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: local file upload OK`);
+          } catch (error) {
+            const elapsed = Date.now() - arrayStartTime;
+            const technicalMsg = getErrorMessage(error);
+            generationLogCollector.error(sessionId, TAG, `${arrayField}[${i}] local file upload FAILED after ${elapsed}ms: ${technicalMsg}`);
+            throw new Error(classifyUploadError(technicalMsg));
+          }
         } else if (typeof imageUrl === "string") {
           generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: already URL - pass through`);
           processedUrls.push(imageUrl);

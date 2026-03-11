@@ -13,6 +13,7 @@ export type {
   ReplaceBackgroundOptions,
   VideoFromImageOptions,
   TextToVideoOptions,
+  TextToVoiceOptions,
   FaceSwapOptions,
 } from "./input-builders.types";
 

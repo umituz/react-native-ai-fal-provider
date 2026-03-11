@@ -51,16 +51,27 @@ function sortKeys(obj: unknown): unknown {
 }
 
 /**
- * Create a deterministic request key using model and input hash
+ * Create a deterministic request key using model and input hash.
+ * Uses dual 32-bit hashes (FNV-1a + DJB2) for collision resistance.
+ * 64-bit combined hash space makes accidental collisions extremely unlikely.
  */
 export function createRequestKey(model: string, input: Record<string, unknown>): string {
   const inputStr = JSON.stringify(sortKeys(input));
-  let hash = 0;
+
+  // FNV-1a hash
+  let h1 = 0x811c9dc5;
   for (let i = 0; i < inputStr.length; i++) {
-    const char = inputStr.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0;
+    h1 ^= inputStr.charCodeAt(i);
+    h1 = Math.imul(h1, 0x01000193);
   }
-  return `${model}:${hash.toString(36)}`;
+
+  // DJB2 hash (independent seed)
+  let h2 = 5381;
+  for (let i = 0; i < inputStr.length; i++) {
+    h2 = ((h2 << 5) + h2 + inputStr.charCodeAt(i)) | 0;
+  }
+
+  return `${model}:${(h1 >>> 0).toString(36)}_${(h2 >>> 0).toString(36)}`;
 }
 
 export function getExistingRequest<T>(key: string): ActiveRequest<T> | undefined {
