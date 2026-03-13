@@ -10,6 +10,7 @@ import {
   deleteTempFile,
 } from "@umituz/react-native-design-system/filesystem";
 import { getErrorMessage } from './helpers/error-helpers.util';
+import { getElapsedTime, getActualSizeKB } from './helpers';
 import { generationLogCollector } from './log-collector';
 import { UPLOAD_CONFIG } from '../services/fal-provider.constants';
 
@@ -72,13 +73,14 @@ async function withRetry<T>(
  */
 export async function uploadToFalStorage(base64: string, sessionId: string): Promise<string> {
   const startTime = Date.now();
-  const sizeKB = Math.round(base64.length / 1024);
-  const actualSizeKB = Math.round(sizeKB * 0.75); // base64 inflates ~33%
+  const actualSizeKB = getActualSizeKB(base64);
   generationLogCollector.log(sessionId, TAG, `Starting upload (~${actualSizeKB}KB actual)`);
 
   const tempUri = await base64ToTempFile(base64);
 
-  if (!tempUri) {
+  // base64ToTempFile returns a string, so this check is for defensive programming
+  // in case the implementation changes in the future
+  if (!tempUri || typeof tempUri !== 'string') {
     throw new Error("Failed to create temporary file from base64 data");
   }
 
@@ -86,6 +88,12 @@ export async function uploadToFalStorage(base64: string, sessionId: string): Pro
     const url = await withRetry(
       async () => {
         const response = await fetch(tempUri);
+
+        // Validate response before processing blob
+        if (!response.ok) {
+          throw new Error(`Failed to fetch temp file: HTTP ${response.status} ${response.statusText}`);
+        }
+
         const blob = await response.blob();
         generationLogCollector.log(sessionId, TAG, `Blob created (${blob.size} bytes), uploading to FAL CDN...`);
         return withTimeout(
@@ -98,11 +106,11 @@ export async function uploadToFalStorage(base64: string, sessionId: string): Pro
       'upload',
     );
 
-    const elapsed = Date.now() - startTime;
+    const elapsed = getElapsedTime(startTime);
     generationLogCollector.log(sessionId, TAG, `Upload complete in ${elapsed}ms`, { url, actualSizeKB, elapsed });
     return url;
   } catch (error) {
-    const elapsed = Date.now() - startTime;
+    const elapsed = getElapsedTime(startTime);
     generationLogCollector.error(sessionId, TAG, `Upload FAILED after ${elapsed}ms: ${getErrorMessage(error)}`, { actualSizeKB, elapsed });
     throw error;
   } finally {
@@ -125,6 +133,12 @@ export async function uploadLocalFileToFalStorage(fileUri: string, sessionId: st
     const url = await withRetry(
       async () => {
         const response = await fetch(fileUri);
+
+        // Validate response before processing blob
+        if (!response.ok) {
+          throw new Error(`Failed to fetch local file: HTTP ${response.status} ${response.statusText}`);
+        }
+
         const blob = await response.blob();
         generationLogCollector.log(sessionId, TAG, `Local file blob (${blob.size} bytes), uploading...`);
         return withTimeout(

@@ -61,7 +61,7 @@ function categorizeError(error: unknown): FalErrorCategory {
   }
 
   // 2. Standard Error - match message patterns
-  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const message = (error instanceof Error ? error.message : error != null ? String(error) : "unknown").toLowerCase();
 
   for (const { type, patterns } of MESSAGE_PATTERNS) {
     if (patterns.some((p) => message.includes(p))) {
@@ -81,8 +81,11 @@ function extractMessage(error: unknown): string {
   // ValidationError - extract field-level messages
   if (error instanceof ValidationError) {
     const fieldErrors = error.fieldErrors;
-    if (fieldErrors.length > 0) {
-      const messages = fieldErrors.map((e) => e.msg).filter(Boolean);
+    if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
+      // Safely extract messages from field errors with validation
+      const messages = fieldErrors
+        .map((e) => (e && typeof e === 'object' && 'msg' in e && typeof e.msg === 'string' ? e.msg : null))
+        .filter((msg): msg is string => msg !== null);
       if (messages.length > 0) return messages.join("; ");
     }
     return error.message;
@@ -90,10 +93,35 @@ function extractMessage(error: unknown): string {
 
   // ApiError - extract from body or message
   if (error instanceof ApiError) {
-    // body may contain detail array
-    const body = error.body as { detail?: Array<{ msg?: string }> } | undefined;
-    if (body?.detail?.[0]?.msg) {
-      return body.detail[0].msg;
+    // body may contain detail array - validate structure before access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const body = error.body;
+
+    // Type guard for detail array structure
+    interface DetailItem {
+      msg?: string;
+    }
+    interface BodyWithDetail {
+      detail?: DetailItem[];
+    }
+
+    const validatedBody = body as BodyWithDetail | undefined;
+
+    if (
+      validatedBody &&
+      validatedBody.detail &&
+      Array.isArray(validatedBody.detail) &&
+      validatedBody.detail.length > 0
+    ) {
+      const firstItem = validatedBody.detail[0];
+      if (
+        firstItem &&
+        typeof firstItem === "object" &&
+        typeof firstItem.msg === "string" &&
+        firstItem.msg
+      ) {
+        return firstItem.msg;
+      }
     }
     return error.message;
   }
@@ -103,7 +131,7 @@ function extractMessage(error: unknown): string {
     return error.message;
   }
 
-  return String(error);
+  return error != null ? String(error) : "Unknown error";
 }
 
 /**

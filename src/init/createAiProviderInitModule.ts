@@ -4,7 +4,7 @@
  */
 
 import { providerRegistry } from '@umituz/react-native-ai-generation-content';
-import { falProvider } from '../infrastructure/services';
+import { falProvider } from '../infrastructure/services/fal-provider';
 
 /**
  * InitModule interface (from @umituz/react-native-design-system)
@@ -79,6 +79,8 @@ export function createAiProviderInitModule(
 
         return Promise.resolve(true);
       } catch (error) {
+        // Use console.error for init module failures (logging may not be initialized yet)
+        // This is a critical startup error, so we want it visible
         console.error('[AiProviderInitModule] Initialization failed:', error);
         throw error;
       }

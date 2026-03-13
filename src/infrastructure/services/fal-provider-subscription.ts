@@ -90,14 +90,15 @@ function formatFalError(error: unknown): string {
     if (error.status === 402) {
       return "Insufficient credits. Please check your billing.";
     }
-    return error.message || `API error (${error.status})`;
+    return error.message ?? `API error (${error.status})`;
   }
 
   if (error instanceof Error) {
     return error.message;
   }
 
-  return String(error);
+  // Handle null/undefined/other types safely
+  return error != null ? String(error) : "Unknown error";
 }
 
 // ─── Retry Logic ────────────────────────────────────────────────────────────
@@ -113,8 +114,8 @@ function isRetryableSubscribeError(error: unknown): boolean {
   // Never retry NSFW
   if (error instanceof NSFWContentError) return false;
 
-  // Never retry user cancellation
-  if (error instanceof Error && error.message.includes("cancelled by user")) return false;
+  // Never retry user cancellation - check Error instance first
+  if (error instanceof Error && error.message?.includes("cancelled by user")) return false;
 
   // ApiError — check status code
   if (error instanceof ApiError) {
@@ -200,15 +201,16 @@ async function singleSubscribeAttempt<T = unknown>(
     ];
 
     if (signal) {
+      // Check for aborted state BEFORE adding listener to prevent race condition
+      if (signal.aborted) {
+        throw new Error("Request cancelled by user");
+      }
       const abortPromise = new Promise<never>((_, reject) => {
         abortHandler = () => reject(new Error("Request cancelled by user"));
         signal.addEventListener("abort", abortHandler, { once: true });
         listenerAdded = true;
       });
       promises.push(abortPromise);
-      if (signal.aborted) {
-        throw new Error("Request cancelled by user");
-      }
     }
 
     const rawResult = await Promise.race(promises);

@@ -11,7 +11,7 @@ import type {
 } from "../../domain/types";
 import { DEFAULT_FAL_CONFIG, FAL_CAPABILITIES } from "./fal-provider.constants";
 import { handleFalSubscription, handleFalRun } from "./fal-provider-subscription";
-import { preprocessInput } from "../utils";
+import { preprocessInput } from "../utils/input-preprocessor.util";
 import { getErrorMessage } from "../utils/helpers/error-helpers.util";
 import { generationLogCollector } from "../utils/log-collector";
 import type { LogEntry } from "../utils/log-collector";

@@ -47,7 +47,25 @@ export function calculateCreditsFromConfig(
   duration: number,
   resolution: string,
 ): number {
-  const costPerSec = config.pricing.costPerSecond[resolution] ?? 0;
+  // Validate config structure before accessing nested properties
+  if (
+    !config ||
+    typeof config !== "object" ||
+    !config.pricing ||
+    typeof config.pricing !== "object" ||
+    !config.pricing.costPerSecond ||
+    typeof config.pricing.costPerSecond !== "object"
+  ) {
+    throw new Error("Invalid VideoModelConfig: pricing structure is missing or invalid");
+  }
+
+  const costPerSecondMap = config.pricing.costPerSecond;
+  const costPerSec = costPerSecondMap[resolution] ?? 0;
+
+  if (typeof costPerSec !== "number" || costPerSec < 0) {
+    throw new Error(`Invalid cost per second for resolution "${resolution}": must be a non-negative number`);
+  }
+
   const cost = costPerSec * duration;
   return Math.max(1, Math.ceil((cost * MARKUP) / CREDIT_PRICE));
 }

@@ -63,24 +63,3 @@ export function formatErrorMessage(error: unknown, context: string): string {
   return `${context}: ${getErrorMessage(error)}`;
 }
 
-/**
- * Extract error name (for Error instances)
- * Returns undefined for non-Error types
- *
- * @param error - The error to extract name from
- * @returns The error name or undefined
- */
-export function getErrorName(error: unknown): string | undefined {
-  return error instanceof Error ? error.name : undefined;
-}
-
-/**
- * Extract error stack trace
- * Returns undefined for non-Error types
- *
- * @param error - The error to extract stack from
- * @returns The error stack trace or undefined
- */
-export function getErrorStack(error: unknown): string | undefined {
-  return error instanceof Error ? error.stack : undefined;
-}

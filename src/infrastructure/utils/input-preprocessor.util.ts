@@ -173,9 +173,7 @@ export async function preprocessInput(
 
     if (failedUploads.length > 0) {
       const successCount = individualUploadResults.length - failedUploads.length;
-      const errorMessages = failedUploads.map((r) =>
-        r.status === 'rejected' ? getErrorMessage(r.reason) : 'Unknown error'
-      );
+      const errorMessages = failedUploads.map((r) => getErrorMessage(r.reason));
       generationLogCollector.error(sessionId, TAG, `Individual uploads: ${successCount}/${individualUploadResults.length} succeeded`, { errors: errorMessages });
       throw new Error(classifyUploadError(errorMessages[0]));
     }

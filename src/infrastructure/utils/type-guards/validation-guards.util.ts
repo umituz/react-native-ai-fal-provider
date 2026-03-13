@@ -22,7 +22,10 @@ export function isValidBase64Image(value: unknown): boolean {
 
   // Check data URI prefix - use direct check instead of type guard to avoid type narrowing issues
   if (value.startsWith("data:image/")) {
-    const base64Part = value.split("base64,")[1];
+    const parts = value.split("base64,");
+    // Ensure split produced at least 2 parts and the second part exists
+    if (parts.length < 2) return false;
+    const base64Part = parts[1];
     if (!base64Part) return false;
     return base64Part.length >= MIN_BASE64_IMAGE_LENGTH;
   }

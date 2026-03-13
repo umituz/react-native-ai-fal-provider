@@ -4,7 +4,7 @@
  */
 
 import { providerRegistry } from '@umituz/react-native-ai-generation-content';
-import { falProvider } from '../infrastructure/services';
+import { falProvider } from '../infrastructure/services/fal-provider';
 
 /**
  * Initializes FAL provider and registers it with providerRegistry in one call.

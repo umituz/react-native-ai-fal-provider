@@ -56,7 +56,15 @@ function sortKeys(obj: unknown): unknown {
  * 64-bit combined hash space makes accidental collisions extremely unlikely.
  */
 export function createRequestKey(model: string, input: Record<string, unknown>): string {
-  const inputStr = JSON.stringify(sortKeys(input));
+  let inputStr: string;
+  try {
+    inputStr = JSON.stringify(sortKeys(input));
+  } catch (error) {
+    // Handle circular references or non-serializable values
+    // Fallback to a simple string representation that won't throw
+    const simpleKeys = Object.keys(input).sort().join(",");
+    inputStr = `${simpleKeys}:${Object.keys(input).length}`;
+  }
 
   // FNV-1a hash
   let h1 = 0x811c9dc5;
@@ -85,7 +93,7 @@ export function getExistingRequest<T>(key: string): ActiveRequest<T> | undefined
 export function storeRequest<T>(key: string, request: ActiveRequest<T>): void {
   getRequestStore().set(key, {
     ...request,
-    createdAt: request.createdAt ?? Date.now(),
+    createdAt: request.createdAt, // createdAt is required, no fallback needed
   });
   ensureCleanupRunning();
 }
