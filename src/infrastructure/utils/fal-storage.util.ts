@@ -9,8 +9,7 @@ import {
   base64ToTempFile,
   deleteTempFile,
 } from "@umituz/react-native-design-system/filesystem";
-import { getErrorMessage } from './helpers/error-helpers.util';
-import { getElapsedTime, getActualSizeKB } from './helpers';
+import { getErrorMessage, getElapsedTime, getActualSizeKB, sleep } from "../../shared/helpers";
 import { generationLogCollector } from './log-collector';
 import { UPLOAD_CONFIG } from '../services/fal-provider.constants';
 
@@ -43,7 +42,7 @@ async function withRetry<T>(
       if (attempt > 0) {
         const delay = baseDelay * Math.pow(2, attempt - 1);
         generationLogCollector.warn(sessionId, TAG, `Retry ${attempt}/${maxRetries} for ${label} after ${delay}ms`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await sleep(delay);
       }
       return await fn();
     } catch (error) {

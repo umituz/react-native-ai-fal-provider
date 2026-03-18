@@ -8,18 +8,12 @@
  */
 
 import { uploadToFalStorage, uploadLocalFileToFalStorage } from "./fal-storage.util";
-import { getErrorMessage } from './helpers/error-helpers.util';
+import { getErrorMessage, getElapsedTime } from "../../shared/helpers";
 import { IMAGE_URL_FIELDS } from './constants/image-fields.constants';
-import { isImageDataUri as isBase64DataUri } from './validators/data-uri-validator.util';
+import { isLocalFileUri, isImageDataUri as isBase64DataUri } from "../../shared/type-guards";
 import { generationLogCollector } from './log-collector';
 
 const TAG = 'preprocessor';
-
-function isLocalFileUri(value: unknown): value is string {
-  return typeof value === "string" && (
-    value.startsWith("file://") || value.startsWith("content://")
-  );
-}
 
 /**
  * Classify a network error into a user-friendly message.
@@ -130,7 +124,7 @@ export async function preprocessInput(
             processedUrls.push(url);
             generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: upload OK`);
           } catch (error) {
-            const elapsed = Date.now() - arrayStartTime;
+            const elapsed = getElapsedTime(arrayStartTime);
             const technicalMsg = getErrorMessage(error);
             generationLogCollector.error(sessionId, TAG, `${arrayField}[${i}] upload FAILED after ${elapsed}ms: ${technicalMsg}`);
             throw new Error(classifyUploadError(technicalMsg));
@@ -143,7 +137,7 @@ export async function preprocessInput(
             processedUrls.push(url);
             generationLogCollector.log(sessionId, TAG, `${arrayField}[${i}/${imageUrls.length}]: local file upload OK`);
           } catch (error) {
-            const elapsed = Date.now() - arrayStartTime;
+            const elapsed = getElapsedTime(arrayStartTime);
             const technicalMsg = getErrorMessage(error);
             generationLogCollector.error(sessionId, TAG, `${arrayField}[${i}] local file upload FAILED after ${elapsed}ms: ${technicalMsg}`);
             throw new Error(classifyUploadError(technicalMsg));
@@ -156,7 +150,7 @@ export async function preprocessInput(
         }
       }
 
-      const arrayElapsed = Date.now() - arrayStartTime;
+      const arrayElapsed = getElapsedTime(arrayStartTime);
       generationLogCollector.log(sessionId, TAG, `${arrayField}: all ${processedUrls.length} upload(s) succeeded in ${arrayElapsed}ms`);
       result[arrayField] = processedUrls;
     }
@@ -179,7 +173,7 @@ export async function preprocessInput(
     }
   }
 
-  const totalElapsed = Date.now() - startTime;
+  const totalElapsed = getElapsedTime(startTime);
   generationLogCollector.log(sessionId, TAG, `Preprocessing complete in ${totalElapsed}ms`);
   return result;
 }

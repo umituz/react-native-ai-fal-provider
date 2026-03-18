@@ -1,47 +1,33 @@
 /**
- * Image Helper Utilities
- * Functions for image data URI manipulation
+ * Image Helper Utilities (Infrastructure Layer)
+ * Delegates to domain ImageProcessingService for image data manipulation
+ *
+ * This file now serves as a thin adapter layer for backward compatibility.
+ * The actual image processing logic has been moved to the domain layer.
  */
+
+import { ImageProcessingService } from "../../domain/services/ImageProcessingService";
 
 /**
  * Format image as data URI if not already formatted
+ * Delegates to domain ImageProcessingService
  */
 export function formatImageDataUri(base64: string): string {
-  if (base64.startsWith("data:")) {
-    return base64;
-  }
-  return `data:image/jpeg;base64,${base64}`;
+  return ImageProcessingService.formatImageDataUri(base64);
 }
 
 /**
  * Extract base64 from data URI
- * Uses indexOf instead of split to handle edge cases where comma might appear in base64
+ * Delegates to domain ImageProcessingService
  */
 export function extractBase64(dataUri: string): string {
-  if (!dataUri.startsWith("data:")) {
-    return dataUri;
-  }
-
-  // Find the first comma which separates header from data
-  const commaIndex = dataUri.indexOf(",");
-  if (commaIndex === -1) {
-    throw new Error(`Invalid data URI format (no comma separator): ${dataUri.substring(0, 50)}...`);
-  }
-
-  // Extract everything after the first comma
-  const base64Part = dataUri.substring(commaIndex + 1);
-
-  if (!base64Part || base64Part.length === 0) {
-    throw new Error(`Empty base64 data in URI: ${dataUri.substring(0, 50)}...`);
-  }
-
-  return base64Part;
+  return ImageProcessingService.extractBase64(dataUri);
 }
 
 /**
  * Get file extension from data URI
+ * Delegates to domain ImageProcessingService
  */
 export function getDataUriExtension(dataUri: string): string | null {
-  const match = dataUri.match(/^data:image\/(\w+);base64/);
-  return match ? match[1] : null;
+  return ImageProcessingService.getDataUriExtension(dataUri);
 }

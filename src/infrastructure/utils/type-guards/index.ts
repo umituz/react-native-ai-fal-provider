@@ -1,6 +1,6 @@
 /**
  * Type Guards - Centralized Exports
+ * Re-exports from shared utilities layer for backward compatibility
  */
 
-export * from './model-type-guards.util';
-export * from './validation-guards.util';
+export * from '../../../shared/type-guards';

@@ -43,11 +43,19 @@ export type {
 } from "./domain/entities/error.types";
 
 // ─── Utilities (public API) ────────────────────────────────────────────────────
+// Shared utilities (consolidated)
 export {
   getErrorMessage,
   getErrorMessageOr,
   formatErrorMessage,
-} from "./infrastructure/utils/helpers/error-helpers.util";
+  buildErrorMessage,
+  isDefined,
+  removeNullish,
+  generateUniqueId,
+  sleep,
+  getElapsedTime,
+  getActualSizeKB,
+} from "./shared/helpers";
 
 export {
   IMAGE_URL_FIELDS,
@@ -56,29 +64,31 @@ export {
 export type { ImageUrlField } from "./infrastructure/utils/constants/image-fields.constants";
 
 export {
-  isDataUri,
-  isBase64DataUri,
-  extractMimeType,
-  extractBase64Content,
-} from "./infrastructure/utils/validators/data-uri-validator.util";
-
-export {
   isEmptyString,
   isNonEmptyString,
   isString,
-} from "./infrastructure/utils/validators/string-validator.util";
-
-export {
-  isFalModelType,
-  isModelType,
-  isFalErrorType,
+  isDataUri,
+  isImageDataUri,
+  isBase64DataUri,
+  extractMimeType,
+  extractBase64Content,
   isValidBase64Image,
   isValidApiKey,
   isValidModelId,
   isValidPrompt,
   isValidTimeout,
   isValidRetryCount,
-} from "./infrastructure/utils/type-guards";
+  isValidAndSafeUrl,
+} from "./shared/validators";
+
+export {
+  isFalModelType,
+  isModelType,
+  isFalErrorType,
+  isRetryableError,
+  isLocalFileUri,
+  isHttpUrl,
+} from "./shared/type-guards";
 
 export {
   formatImageDataUri,
@@ -90,14 +100,6 @@ export {
   uploadToFalStorage,
   uploadMultipleToFalStorage,
 } from "./infrastructure/utils/fal-storage.util";
-
-export {
-  buildErrorMessage,
-  isDefined,
-  removeNullish,
-  generateUniqueId,
-  sleep,
-} from "./infrastructure/utils/helpers";
 
 export { preprocessInput } from "./infrastructure/utils/input-preprocessor.util";
 
